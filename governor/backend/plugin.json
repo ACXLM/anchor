@@ -1,0 +1,51 @@
+{
+    "Name": "dce-StaticIP-plugin",
+    "Icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4gIDx0aXRsZT5zdGF0aWNfaXA8L3RpdGxlPiAgPGc+ICAgIDxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjMzI2Y2U1Ii8+ICAgIDxwYXRoIGQ9Ik01MCwxOS40NzVBMzAuNTI1LDMwLjUyNSwwLDEsMCw4MC41MjUsNTAsMzAuNTI1LDMwLjUyNSwwLDAsMCw1MCwxOS40NzVaTTIzLjgzNSw1MGEyNi4wNTcsMjYuMDU3LDAsMCwxLC43NjItNi4xODdIMzcuNTUyYTQzLjM2Nyw0My4zNjcsMCwwLDAsMCwxMi4zNzVIMjQuNkEyNi4wNTcsMjYuMDU3LDAsMCwxLDIzLjgzNSw1MFpNNDEuNDcsNTBhNDEuMDgyLDQxLjA4MiwwLDAsMSwuNDktNi4xODdINTguMDQxQTQxLjE1Miw0MS4xNTIsMCwwLDEsNTguNTMsNTBhNDAuODkxLDQwLjg5MSwwLDAsMS0uNDkyLDYuMTg4SDQxLjk1OUE0MS4xLDQxLjEsMCwwLDEsNDEuNDcsNTBabTIwLjk3Ny02LjE4N0g3NS40YTI1LjUsMjUuNSwwLDAsMSwwLDEyLjM3NUg2Mi40NDdhNDMuMzU1LDQzLjM1NSwwLDAsMCwwLTEyLjM3NVptMTEuNTczLTQuMTI1SDYxLjcwOGE0NS44MTQsNDUuODE0LDAsMCwwLTYuNzQ2LTE1LjM2N0EyNi4yNDMsMjYuMjQzLDAsMCwxLDc0LjAxOSwzOS42ODhaTTUwLDI0LjkxM2E0MS40NTYsNDEuNDU2LDAsMCwxLDcuMjE0LDE0Ljc3NEg0Mi43ODRBNDEuNDkzLDQxLjQ5MywwLDAsMSw1MCwyNC45MTNabS00Ljk4NC0uNTg5YTQ1Ljg0OCw0NS44NDgsMCwwLDAtNi43MzEsMTUuMzY0SDI1Ljk4MUEyNi4yNDMsMjYuMjQzLDAsMCwxLDQ1LjAyLDI0LjMyNFpNMjUuOTgxLDYwLjMxM0gzOC4yOTNBNDUuODc2LDQ1Ljg3NiwwLDAsMCw0NS4wNCw3NS42NzksMjYuMjQzLDI2LjI0MywwLDAsMSwyNS45ODEsNjAuMzEzWk00OS45ODYsNzUuMDY2YTQxLjQ3OSw0MS40NzksMCwwLDEtNy4yLTE0Ljc1NEg1Ny4yMDlBNDEuNTcxLDQxLjU3MSwwLDAsMSw0OS45ODYsNzUuMDY2Wm00Ljk3NS42MTNhNDUuNzc0LDQ1Ljc3NCwwLDAsMCw2Ljc0OC0xNS4zNjdINzQuMDE5QTI2LjI0MywyNi4yNDMsMCwwLDEsNTQuOTYxLDc1LjY3OVoiIGZpbGw9IiNmZmYiLz4gIDwvZz48L3N2Zz4=",
+    "Extensions": {
+        "daocloud.dce-StaticIP-plugin.navigatorNode": {
+            "ExtendedPoint": "dce.navigator.nodeSpecs",
+            "Object": {
+                "Title": "地址池管理",
+                "ParentUID": "dce.core.navigator.infrastructure",
+                "Icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0iIzliYTNhZiI+ICA8dGl0bGU+aWNvbl9zdGF0aWNfaXA8L3RpdGxlPiAgPHBhdGggZD0iTTE2LDEuMkExNC44LDE0LjgsMCwxLDAsMzAuOCwxNiwxNC44LDE0LjgsMCwwLDAsMTYsMS4yWk0zLjMxNCwxNmExMi42MzQsMTIuNjM0LDAsMCwxLC4zNjktM0g5Ljk2NWEyMS4wMjYsMjEuMDI2LDAsMCwwLDAsNkgzLjY4NEExMi42MzQsMTIuNjM0LDAsMCwxLDMuMzE0LDE2Wm04LjU1LDBhMTkuOTE4LDE5LjkxOCwwLDAsMSwuMjM4LTNoNy44YTE5Ljk1MiwxOS45NTIsMCwwLDEsLjIzNywzLDE5LjgyNiwxOS44MjYsMCwwLDEtLjIzOSwzSDEyLjFBMTkuOTI3LDE5LjkyNywwLDAsMSwxMS44NjQsMTZabTEwLjE3MS0zaDYuMjgyYTEyLjM2MiwxMi4zNjIsMCwwLDEsMCw2SDIyLjAzNWEyMi4xLDIyLjEsMCwwLDAsLjIxNS0zQTIyLjA4NSwyMi4wODUsMCwwLDAsMjIuMDM1LDEzWm01LjYxMS0ySDIxLjY3N2EyMi4yMTMsMjIuMjEzLDAsMCwwLTMuMjcxLTcuNDVBMTIuNzI0LDEyLjcyNCwwLDAsMSwyNy42NDYsMTFaTTE2LDMuODM3QTIwLjEsMjAuMSwwLDAsMSwxOS41LDExaC03QTIwLjExOCwyMC4xMTgsMCwwLDEsMTYsMy44MzdabS0yLjQxNi0uMjg2QTIyLjIzLDIyLjIzLDAsMCwwLDEwLjMyMiwxMUg0LjM1NEExMi43MjQsMTIuNzI0LDAsMCwxLDEzLjU4NiwzLjU1MVpNNC4zNTQsMjFoNS45NjlhMjIuMjQzLDIyLjI0MywwLDAsMCwzLjI3MSw3LjQ1MUExMi43MjQsMTIuNzI0LDAsMCwxLDQuMzU0LDIxWm0xMS42MzksNy4xNTNBMjAuMTExLDIwLjExMSwwLDAsMSwxMi41LDIxSDE5LjVBMjAuMTU2LDIwLjE1NiwwLDAsMSwxNS45OTMsMjguMTUzWm0yLjQxMi4zQTIyLjE5NCwyMi4xOTQsMCwwLDAsMjEuNjc3LDIxaDUuOTY5QTEyLjcyNCwxMi43MjQsMCwwLDEsMTguNDA1LDI4LjQ1MVoiLz48L3N2Zz4=",
+                "NavigationTargetUID": "daocloud.dce-StaticIP-plugin.globalView",
+                "AdminOnly": false
+            }
+        },
+        "daocloud.dce-StaticIP-plugin.globalView": {
+            "ExtendedPoint": "dce.global.views",
+            "Object": {
+                "Name": "dce-StaticIP-plugin",
+                "ComponentClass": {
+                    "ClassName": "dce.client.htmlbridge.HtmlView",
+                    "Object": {
+                        "Root": {
+                            "URL": "/index.html"
+                        }
+                    }
+                }
+            }
+        },
+        "daocloud.dce-StaticIP-plugin.settingButton": {
+            "ExtendedPoint": "dce.plugin.settings",
+            "Object": {
+                "PluginName": "dce-StaticIP-plugin",
+                "NavigationTargetUID": "daocloud.dce-StaticIP-plugin.globalView"
+            }
+        },
+        "daocloud.dce-StaticIP-plugin.Application.manage": {
+            "ExtendedPoint": "dce.core.Application.manageViews",
+            "Object": {
+                "Name": "地址池管理",
+                "ComponentClass": {
+                    "ClassName": "dce.client.htmlbridge.HtmlView",
+                    "Object": {
+                        "Root": {
+                            "URL": "/app-view.html"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

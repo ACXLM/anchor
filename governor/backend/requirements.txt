@@ -1,0 +1,13 @@
+Flask==0.12.2
+Flask-Cors==3.0.2
+Flask-RESTful==0.3.6
+
+dce-plugin-sdk==0.1
+docker==2.3.0
+
+schedule==0.3.2
+
+etcd3>=0.7.0
+requests==2.10.0
+pyjwt==1.5.2
+IPy==0.83
