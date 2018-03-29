@@ -24,7 +24,7 @@ import (
 
 	"github.com/containernetworking/cni/pkg/types/current"
 	"github.com/containernetworking/plugins/pkg/ip"
-	"github.com/daocloud/anchor/backend"
+	"github.com/daocloud/anchor/anchor-ipam/backend"
 )
 
 type IPAllocator struct {
@@ -214,7 +214,7 @@ func (a *IPAllocator) Release(id string) error {
 	a.store.Lock()
 	defer a.store.Unlock()
 
-	return a.store.ReleaseByID(id)
+	return a.store.Release(id)
 }
 
 type RangeIter struct {

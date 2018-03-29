@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/containernetworking/cni/pkg/types"
-	"github.com/daocloud/anchor/k8s"
+	"github.com/daocloud/anchor/anchor-ipam/k8s"
 	"net"
 )
 

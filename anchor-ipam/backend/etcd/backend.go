@@ -19,7 +19,7 @@ import (
 	"fmt"
 	// "crypto/tls"
 	"github.com/containernetworking/cni/pkg/types"
-	"github.com/daocloud/anchor/backend"
+	"github.com/daocloud/anchor/anchor-ipam/backend"
 	"net"
 	"strings"
 	"time"
@@ -130,7 +130,9 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 		return nil, err
 	}
 	ret := make([]net.IP, 0)
+
 	for _, item := range resp.Kvs {
+		// TODO: will bug if someone insert something to /ipam/ips/ ancidently.
 		row := strings.Split(string(item.Value), ",")
 		if row[2] == pod && row[3] == namespace {
 			ret = append(ret, net.ParseIP(row[0]))
@@ -142,8 +144,8 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 
 func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error) {
 	// TODO: lock
-	if _, err := s.kv.Put(context.TODO(), "/ipam/ips/"+ip.String(),
-		ip.String()+","+id+","+podName+","+podNamespace); err != nil {
+	if _, err := s.kv.Put(context.TODO(), "/ipam/ips/" + id,
+		id + "," + ip.String()+ "," + podName + "," + podNamespace); err != nil {
 		return false, nil
 	}
 
@@ -163,14 +165,14 @@ func (s *Store) LastReservedIP(rangeID string) (net.IP, error) {
 	return net.ParseIP(string(resp.Kvs[0].Value)), nil
 }
 
-func (s *Store) Release(ip net.IP) error {
-	_, err := s.kv.Delete(context.TODO(), "/ipam/ips/"+ip.String())
+func (s *Store) Release(id string) error {
+	_, err := s.kv.Delete(context.TODO(), "/ipam/ips/" + id)
 	return err
 }
 
 // N.B. This function eats errors to be tolerant and
 // release as much as possible
-func (s *Store) ReleaseByID(id string) error {
+func (s *Store) ReleaseByIP(ip net.IP) error {
 	resp, err := s.kv.Get(context.TODO(), "/ipam/ips/", clientv3.WithPrefix())
 	if err != nil {
 		return err
@@ -182,7 +184,7 @@ func (s *Store) ReleaseByID(id string) error {
 	}
 
 	for _, item := range resp.Kvs {
-		if strings.TrimSpace(string(item.Value)) == strings.TrimSpace(id) {
+		if strings.Split(strings.TrimSpace(string(item.Value)), ",")[1] == strings.TrimSpace(ip.String()) {
 			_, err = s.kv.Delete(context.TODO(), strings.TrimSpace(string(item.Key)))
 			if err != nil {
 				return err
