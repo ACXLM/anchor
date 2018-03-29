@@ -182,9 +182,9 @@ def get_static_ip_admin():
     log.debug("sip from admin:{}".format(sips))
     for s in sips:
         data = s[0].split(",")
-        result[data[0]] = StaticIP(static_ip=data[0], pod_name=data[2],
+        result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
                                    tenant_name=data[3], app_name=data[5],
-                                   service_name=data[4], container_id=data[1])._as_view_dict()
+                                   service_name=data[4], container_id=data[0])._as_view_dict()
     return jsonify(result)
 
 
@@ -195,9 +195,9 @@ def get_static_ip_unadmin():
     for s in sips:
         data = s[0].split(",")
         if data[3] in get_tenant_names():
-            result[data[0]] = StaticIP(static_ip=data[0], pod_name=data[2],
+            result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
                                            tenant_name=data[3],app_name=data[5],
-                                           service_name=data[4], container_id=data[1])._as_view_dict()
+                                           service_name=data[4], container_id=data[0])._as_view_dict()
     return jsonify(result)
 
 
