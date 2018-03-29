@@ -18,9 +18,9 @@ import (
 	// "crypto/tls"
 	// "encoding/json"
 	// "fmt"
-	"github.com/daocloud/anchor/backend/allocator"
-	"github.com/daocloud/anchor/backend/etcd"
-	"github.com/daocloud/anchor/k8s"
+	"github.com/daocloud/anchor/anchor-ipam/backend/allocator"
+	"github.com/daocloud/anchor/anchor-ipam/backend/etcd"
+	"github.com/daocloud/anchor/anchor-ipam/k8s"
 	// "github.com/coreos/etcd/pkg/transport"
 	"net"
 	// "strings"
@@ -162,7 +162,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-	return store.ReleaseByID(args.ContainerID)
+	return store.Release(args.ContainerID)
 	// TODO: allocator and deleter.
 	/*
 		alloc := allocator.NewAnchorAllocator(&rangeset, store, idx)

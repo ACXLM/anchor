@@ -22,8 +22,8 @@ type Store interface {
 	Close() error
 	Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error)
 	LastReservedIP(rangeID string) (net.IP, error)
-	Release(ip net.IP) error
-	ReleaseByID(id string) error
+	Release(id string) error
+	ReleaseByIP(ip net.IP) error
 	GetOwnedIPs(user string) (string, error)
 	GetUsedByPod(pod string, namespace string) ([]net.IP, error)
 	GetGatewayForIP(ip net.IP) (*net.IPNet, *net.IP, error)
