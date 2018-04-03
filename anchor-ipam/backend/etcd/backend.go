@@ -134,7 +134,7 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 		// TODO: will bug if someone insert something to /ipam/ips/ ancidently.
 		row := strings.Split(string(item.Value), ",")
 		if row[2] == pod && row[3] == namespace {
-			ret = append(ret, net.ParseIP(row[0]))
+			ret = append(ret, net.ParseIP(row[1]))
 
 		}
 	}
