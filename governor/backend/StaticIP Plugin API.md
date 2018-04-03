@@ -326,11 +326,17 @@ id:
     - static_ip_already_exist_error -- 创建失败，静态 IP 已存在
     - static_ip_not_exist_error -- 这条还不存在
     - not_authorized_error
-        - "Admin required." "需要管理员权限"
-    - static_ip_format_error -- "IP 格式不正确"
-    - static_ip_range_too_big -- "IP 范围过大"
-    - sip_ip_range_err -- "IP范围错误"
+        - "Admin required." 需要管理员权限
+    - static_ip_format_error -- IP 格式不正确
+    - static_ip_range_too_big -- IP 范围过大
+    - sip_ip_range_err -- IP范围错误
     - static_ip_not_belong_to_tenant -- 静态 IP 不属于该租户
+    - sip_already_assigned_error -- 静态IP已分配
+    - sip_delete_error -- 静态IP删除错误
+    - sip_ip_gateway_not_in_subnet_error --网关未在子网内
+    - sip_ip_delete_gateway_error -- 删除网关错误
+    - sip_ip_create_gateway_error --创建网关错误
+    - subnet_already_exist_error --子网已存在
 ```
 
 

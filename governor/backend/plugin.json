@@ -32,20 +32,6 @@
                 "PluginName": "dce-StaticIP-plugin",
                 "NavigationTargetUID": "daocloud.dce-StaticIP-plugin.globalView"
             }
-        },
-        "daocloud.dce-StaticIP-plugin.Application.manage": {
-            "ExtendedPoint": "dce.core.Application.manageViews",
-            "Object": {
-                "Name": "地址池管理",
-                "ComponentClass": {
-                    "ClassName": "dce.client.htmlbridge.HtmlView",
-                    "Object": {
-                        "Root": {
-                            "URL": "/app-view.html"
-                        }
-                    }
-                }
-            }
         }
     }
 }
