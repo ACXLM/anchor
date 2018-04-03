@@ -21,7 +21,7 @@ import (
 	"github.com/daocloud/anchor/anchor-ipam/backend/allocator"
 	"github.com/daocloud/anchor/anchor-ipam/backend/etcd"
 	"github.com/daocloud/anchor/anchor-ipam/k8s"
-	// "github.com/coreos/etcd/pkg/transport"
+	"github.com/coreos/etcd/pkg/transport"
 	"net"
 	// "strings"
 
@@ -54,6 +54,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 		result.DNS = *dns
 	}
 
+
+	tlsInfo := &transport.TLSInfo{
+		CertFile:      ipamConf.CertFile,
+		KeyFile:       ipamConf.KeyFile,
+		TrustedCAFile: ipamConf.TrustedCAFile,
+	}
+	tlsConfig, _ := tlsInfo.ClientConfig()
+
 	// Get conf for etcd store.
 	/*
 		var tlsConfig *tls.Config
@@ -72,7 +80,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 			}
 		}
 	*/
-	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints)
+	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
 	defer store.Close()
 	if err != nil {
 		return err
@@ -156,7 +164,14 @@ func cmdDel(args *skel.CmdArgs) error {
 			}
 		}
 	*/
-	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints)
+	tlsInfo := &transport.TLSInfo{
+		CertFile:      ipamConf.CertFile,
+		KeyFile:       ipamConf.KeyFile,
+		TrustedCAFile: ipamConf.TrustedCAFile,
+	}
+	tlsConfig, _ := tlsInfo.ClientConfig()
+
+	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
 	defer store.Close()
 	// store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
 	if err != nil {
