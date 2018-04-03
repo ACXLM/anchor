@@ -38,10 +38,6 @@ def sip_ip_range_too_big(message=''):
     raise APIException('static_ip_range_too_big', message, 400)
 
 
-def sip_unassign_to_service_first(message=''):
-    raise APIException('static_ip_unassign_to_service_first', message, 400)
-
-
 def sip_not_belong_to_tenant(message=''):
     raise APIException('static_ip_not_belong_to_tenant', message, 400)
 

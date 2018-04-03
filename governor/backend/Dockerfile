@@ -1,7 +1,7 @@
-FROM python:2-alpine
+FROM python:2.7-alpine
 
 LABEL maintainer="hui.zhu" \
-      io.daocloud.dce.plugin.name="StaticIP" \
+      io.daocloud.dce.plugin.name="Anchor" \
       io.daocloud.dce.plugin.description="统一管理和分配静态IP地址，每个容器都可以拥有独立的静态IP。" \
       io.daocloud.dce.plugin.categories="container-tool" \
       io.daocloud.dce.plugin.vendor="DaoCloud" \
@@ -11,10 +11,10 @@ LABEL maintainer="hui.zhu" \
 
 WORKDIR /usr/src/app/
 
-ENV AGENT_PUBLISHED_PORT 12373
 
 COPY ./requirements.txt /usr/src/app/
-RUN apk add --no-cache --virtual .build-deps \
+RUN apk add --no-cache libstdc++ \
+  && apk add --no-cache --virtual .build-deps \
     python-dev \
     build-base \
     linux-headers \
@@ -24,9 +24,11 @@ RUN apk add --no-cache --virtual .build-deps \
   && rm -rf /usr/src/python ~/.cache \
   && rm -rf /var/cache/apk/*
 
+ENV PROD True
+
 EXPOSE 80
 
-COPY ./certs /etc/ssl/private
+COPY ./certs /etc/ssl
 COPY ./plugin.json /usr/src/app/plugin.json
 COPY ./nginx /etc/nginx/static-ip
 COPY ./bin /static-ip
