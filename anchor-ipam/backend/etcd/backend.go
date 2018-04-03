@@ -17,7 +17,7 @@ package etcd
 import (
 	"context"
 	"fmt"
-	// "crypto/tls"
+	"crypto/tls"
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/daocloud/anchor/anchor-ipam/backend"
 	"net"
@@ -42,8 +42,7 @@ type Store struct {
 // Store implements the Store interface
 var _ backend.Store = &Store{}
 
-// func New(network string, endPoints []string, tlsConfig *tls.Config) (*Store, error) {
-func New(network string, endPoints []string) (*Store, error) {
+func New(network string, endPoints []string, tlsConfig *tls.Config) (*Store, error) {
 	if len(endPoints) == 0 {
 		return nil, fmt.Errorf("No available endpoints for etcd client")
 	}
@@ -51,7 +50,7 @@ func New(network string, endPoints []string) (*Store, error) {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   endPoints,
 		DialTimeout: 5 * time.Second,
-		// TLS:         tlsConfig,
+		TLS:         tlsConfig,
 	})
 
 	if err != nil {

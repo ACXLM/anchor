@@ -45,9 +45,9 @@ type IPAMConfig struct {
 	Kubernetes k8s.Kubernetes `json:"kubernetes"`
 	Policy     k8s.Policy     `json:"policy"`
 	// etcd perm files
-	CertFile      string `json:"certFile,omitempty"`
-	KeyFile       string `json:"keyFile,omitempty"`
-	TrustedCAFile string `json:"trustedCAFile,omitempty"`
+	CertFile      string `json:"certFile"`
+	KeyFile       string `json:"keyFile"`
+	TrustedCAFile string `json:"trustedCAFile"`
 	// additional network config for pods
 	Routes     []*types.Route `json:"routes,omitempty"`
 	ResolvConf string         `json:"resolvConf,omitempty"`
