@@ -15,15 +15,12 @@
 package main
 
 import (
-	// "crypto/tls"
-	// "encoding/json"
-	// "fmt"
 	"github.com/daocloud/anchor/anchor-ipam/backend/allocator"
 	"github.com/daocloud/anchor/anchor-ipam/backend/etcd"
 	"github.com/daocloud/anchor/anchor-ipam/k8s"
 	"github.com/coreos/etcd/pkg/transport"
 	"net"
-	// "strings"
+	"strings"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
@@ -62,25 +59,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 	tlsConfig, _ := tlsInfo.ClientConfig()
 
-	// Get conf for etcd store.
-	/*
-		var tlsConfig *tls.Config
-		if ipamConf.CertFile != "" &&
-			ipamConf.KeyFile != "" &&
-			ipamConf.TrustedCAFile != "" {
-			tlsInfo := transport.TLSInfo{
-				CertFile:      ipamConf.CertFile,
-				KeyFile:       ipamConf.KeyFile,
-				TrustedCAFile: ipamConf.TrustedCAFile,
-			}
-
-			tlsConfig, err = tlsInfo.ClientConfig()
-			if err != nil {
-				return err
-			}
-		}
-	*/
-	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
+	store, err := etcd.New(ipamConf.Name, strings.Split(ipamConf.Endpoints, ","), tlsConfig)
 	defer store.Close()
 	if err != nil {
 		return err
@@ -89,14 +68,6 @@ func cmdAdd(args *skel.CmdArgs) error {
 	// Get annotations of the pod, such as ipAddrs and current user.
 
 	// 1. Get conf for k8s client and create a k8s_client
-	// Conf mainly policy and kuberconfig, those inforamtion is written at /etc/cni/net.d
-	/*
-		conf := k8s.NetConf{}
-		if err := json.Unmarshal(args.StdinData, &conf); err != nil {
-			return fmt.Errorf("failed to load netconf: %v", err)
-		}
-	*/
-	// k8sClient, err := k8s.NewK8sClient(conf)
 	k8sClient, err := k8s.NewK8sClient(ipamConf.Kubernetes, ipamConf.Policy)
 	if err != nil {
 		return err
@@ -119,8 +90,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if ipAddrs == "" || currentUser == "" {
 		return err
 	}
-	// podName := string(k8sArgs.K8S_POD_NAME)
-	// podNamespace := string(k8sArgs.K8S_POD_NAMESPACE)
+
 	alloc := allocator.NewAnchorAllocator(currentUser, allocator.LoadRangeSet(ipAddrs), store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
 
 	ipConf, err := alloc.Get(args.ContainerID)
@@ -147,23 +117,7 @@ func cmdDel(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-	/*
-		var tlsConfig *tls.Config
-		if ipamConf.CertFile != "" &&
-			ipamConf.KeyFile != "" &&
-			ipamConf.TrustedCAFile != "" {
-			tlsInfo := transport.TLSInfo{
-				CertFile: ipamConf.CertFile,
-				KeyFile: ipamConf.KeyFile,
-				TrustedCAFile: ipamConf.TrustedCAFile,
-			}
 
-			tlsConfig, err = tlsInfo.ClientConfig()
-			if err != nil {
-				return err
-			}
-		}
-	*/
 	tlsInfo := &transport.TLSInfo{
 		CertFile:      ipamConf.CertFile,
 		KeyFile:       ipamConf.KeyFile,
@@ -173,30 +127,9 @@ func cmdDel(args *skel.CmdArgs) error {
 
 	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
 	defer store.Close()
-	// store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
 	if err != nil {
 		return err
 	}
 	return store.Release(args.ContainerID)
 	// TODO: allocator and deleter.
-	/*
-		alloc := allocator.NewAnchorAllocator(&rangeset, store, idx)
-
-
-		// Loop through all ranges, releasing all IPs, even if an error occurs
-		var errors []string
-		for idx, rangeset := range ipamConf.Ranges {
-			alloc := allocator.NewAnchorAllocator(&rangeset, store, idx)
-
-			err := ipAllocator.Release(args.ContainerID)
-			if err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-
-		if errors != nil {
-			return fmt.Errorf(strings.Join(errors, ";"))
-		}
-		return nil
-	*/
 }

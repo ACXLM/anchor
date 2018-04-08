@@ -40,14 +40,14 @@ type IPAMConfig struct {
 	Name string
 	Type string `json:"type"`
 	// etcd client
-	Endpoints []string `json:"etcd_endpoints"`
+	Endpoints string `json:"etcd_endpoints"`
 	// Used for k8s client
 	Kubernetes k8s.Kubernetes `json:"kubernetes"`
 	Policy     k8s.Policy     `json:"policy"`
 	// etcd perm files
-	CertFile      string `json:"certFile"`
-	KeyFile       string `json:"keyFile"`
-	TrustedCAFile string `json:"trustedCAFile"`
+	CertFile      string `json:"etcd_cert_file"`
+	KeyFile       string `json:"etcd_key_file"`
+	TrustedCAFile string `json:"etcd_ca_cert_file"`
 	// additional network config for pods
 	Routes     []*types.Route `json:"routes,omitempty"`
 	ResolvConf string         `json:"resolvConf,omitempty"`
@@ -90,7 +90,7 @@ func LoadIPAMConfig(bytes []byte, envArgs string) (*IPAMConfig, string, error) {
 		return nil, "", fmt.Errorf("IPAM config missing 'ipam' key")
 	}
 
-	if n.IPAM.Endpoints == nil {
+	if n.IPAM.Endpoints == "" {
 		return nil, "", fmt.Errorf("IPAM config missing 'etcd_endpoints' keys")
 	}
 
