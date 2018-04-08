@@ -56,7 +56,7 @@ func New(network string, endPoints []string, tlsConfig *tls.Config) (*Store, err
 	if err != nil {
 		return nil, err
 	}
-	// TODO: No, this will bear a bug.
+	// TODO: No, this will give you a bug.
 	// defer cli.Close()
 	session, err := concurrency.NewSession(cli)
 	if err != nil {

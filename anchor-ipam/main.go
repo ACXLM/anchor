@@ -130,6 +130,8 @@ func cmdDel(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
+	store.Lock()
+	defer store.Unlock()
 	return store.Release(args.ContainerID)
 	// TODO: allocator and deleter.
 }
