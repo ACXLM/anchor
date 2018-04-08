@@ -62,8 +62,8 @@ func NewIPAllocator(s *RangeSet, store backend.Store, id int) *IPAllocator {
 func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 	// TODO: minimal lock range.
 	// TODO: lock Error while adding to cni network: context canceled
-	// a.store.Lock()
-	// defer a.store.Unlock()
+	a.store.Lock()
+	defer a.store.Unlock()
 	var errors []string
 	ips, err := a.store.GetOwnedIPs(a.user)
 	if err != nil {

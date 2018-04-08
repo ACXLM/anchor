@@ -125,11 +125,13 @@ func cmdDel(args *skel.CmdArgs) error {
 	}
 	tlsConfig, _ := tlsInfo.ClientConfig()
 
-	store, err := etcd.New(ipamConf.Name, ipamConf.Endpoints, tlsConfig)
+	store, err := etcd.New(ipamConf.Name, strings.Split(ipamConf.Endpoints, ","), tlsConfig)
 	defer store.Close()
 	if err != nil {
 		return err
 	}
+	store.Lock()
+	defer store.Unlock()
 	return store.Release(args.ContainerID)
 	// TODO: allocator and deleter.
 }

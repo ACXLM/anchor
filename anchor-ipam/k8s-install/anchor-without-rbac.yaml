@@ -95,10 +95,7 @@ spec:
         # and CNI network config file on each node.
         - name: anchor-install
           image: anchor:v0.1
-          # command: ["/install-cni.sh"]
-          command:
-            - sleep
-            - "3600"
+          command: ["/install-cni.sh"]
           env:
             # The location of the Anchor etcd cluster.
             - name: ETCD_ENDPOINTS
