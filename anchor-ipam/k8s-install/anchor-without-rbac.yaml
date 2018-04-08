@@ -6,9 +6,11 @@ metadata:
   namespace: kube-system
 data:
   # Configure this with the location of your etcd cluster.
-  etcd_endpoints: "http://127.0.0.1:2379"
+  # Example: "http://10.0.0.2:2379,http://10.0.0.3:2379"
+  etcd_endpoints: "http://10.0.0.2:2379,http://10.0.0.3:2379"
 
-  # Configure the Anchor backend to use.
+  # Configure the macvlan interface to use.
+  macvlan_interface: "mac0"
 
   # The CNI network configuration to install on each node.
   cni_network_config: |-
@@ -104,6 +106,12 @@ spec:
                 configMapKeyRef:
                   name: anchor-config
                   key: etcd_endpoints
+            # MacVlan interface
+            - name: MACVLAN_INTERFACE
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: macvlan_interface
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
               valueFrom:
@@ -137,4 +145,3 @@ kind: ServiceAccount
 metadata:
   name: anchor
   namespace: kube-system
-
