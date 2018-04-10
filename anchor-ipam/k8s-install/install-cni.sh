@@ -153,11 +153,15 @@ sed -i s/__CNI_MTU__/${CNI_MTU:-1500}/g $TMP_CONF
 
 # Use alternative command character "~", since these include a "/".
 sed -i s~__KUBECONFIG_FILEPATH__~${HOST_CNI_NET_DIR}/anchor-kubeconfig~g $TMP_CONF
-sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
-sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF
-sed -i s~__ETCD_CA_CERT_FILE__~${CNI_CONF_ETCD_CA:-}~g $TMP_CONF
+# TODO: make it back.
+# sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
+# sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF
+# sed -i s~__ETCD_CA_CERT_FILE__~${CNI_CONF_ETCD_CA:-}~g $TMP_CONF
 sed -i s~__ETCD_ENDPOINTS__~${ETCD_ENDPOINTS:-}~g $TMP_CONF
 sed -i s~__MACVLAN_INTERFACE__~${MACVLAN_INTERFACE:-}~g $TMP_CONF
+sed -i s~__ETCD_KEY_FILE__~${ETCD_KEY:-}~g $TMP_CONF
+sed -i s~__ETCD_CERT_FILE__~${ETCD_CERT:-}~g $TMP_CONF
+sed -i s~__ETCD_CA_CERT_FILE__~${ETCD_CA:-}~g $TMP_CONF
 # sed -i s~__LOG_LEVEL__~${LOG_LEVEL:-warn}~g $TMP_CONF
 
 CNI_CONF_NAME=${CNI_CONF_NAME:-10-anchor.conf}

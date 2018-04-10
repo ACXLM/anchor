@@ -94,7 +94,7 @@ spec:
         # This container installs the anchor CNI binaries
         # and CNI network config file on each node.
         - name: anchor-install
-          image: anchor:v0.1
+          image: daocloud.io/daocloud/anchor:v0.2
           command: ["/install-cni.sh"]
           env:
             # The location of the Anchor etcd cluster.
@@ -109,6 +109,22 @@ spec:
                 configMapKeyRef:
                   name: anchor-config
                   key: macvlan_interface
+            # ETCD cert and key
+            - name: ETCD_CA
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_ca
+            - name: ETCD_CERT
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_cert
+            - name: ETCD_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_key
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
               valueFrom:
