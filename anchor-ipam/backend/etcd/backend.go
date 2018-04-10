@@ -27,10 +27,12 @@ import (
 	"github.com/coreos/etcd/clientv3/concurrency"
 )
 
-const lastIPFilePrefix = "last_reserved_ip."
-
-// var defaultDataDir = "/var/lib/cni/networks"
-var defaultDataDir = "/ipam"
+const (
+	ipsPrefix = "/anchor/ips/"
+	gatewayPrefix = "/anchor/gw/"
+	userPrefix = "/anchor/user/"
+	lockKey = "/anchor/lock"
+)
 
 // Store is a simple etcd-backed store that creates one kv pair per IP
 // address. The value of the pair is the container ID.
@@ -63,7 +65,7 @@ func New(network string, endPoints []string, tlsConfig *tls.Config) (*Store, err
 		return nil, err
 	}
 
-	mutex := concurrency.NewMutex(session, "/ipam/lock")
+	mutex := concurrency.NewMutex(session, lockKey)
 	kv := clientv3.NewKV(cli)
 	return &Store{mutex, kv}, nil
 }
@@ -82,7 +84,7 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) GetOwnedIPs(user string) (string, error) {
-	resp, err := s.kv.Get(context.TODO(), "/ipam/users/"+user)
+	resp, err := s.kv.Get(context.TODO(), userPrefix + user)
 	if err != nil {
 		return "", err
 	}
@@ -95,7 +97,7 @@ func (s *Store) GetOwnedIPs(user string) (string, error) {
 
 func (s *Store) GetGatewayForIP(ip net.IP) (*net.IPNet, *net.IP, error) {
 
-	resp, err := s.kv.Get(context.TODO(), "/ipam/gateway/", clientv3.WithPrefix())
+	resp, err := s.kv.Get(context.TODO(), gatewayPrefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,14 +126,14 @@ func (s *Store) GetGatewayForIP(ip net.IP) (*net.IPNet, *net.IP, error) {
 }
 
 func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
-	resp, err := s.kv.Get(context.TODO(), "/ipam/ips/", clientv3.WithPrefix())
+	resp, err := s.kv.Get(context.TODO(), ipsPrefix, clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]net.IP, 0)
 
 	for _, item := range resp.Kvs {
-		// TODO: will bug if someone insert something to /ipam/ips/ ancidently.
+		// TODO: will bug if someone insert something to ipsPrefix ancidently.
 		row := strings.Split(string(item.Value), ",")
 		if row[2] == pod && row[3] == namespace {
 			ret = append(ret, net.ParseIP(row[1]))
@@ -143,7 +145,7 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 
 func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error) {
 	// TODO: lock
-	if _, err := s.kv.Put(context.TODO(), "/ipam/ips/" + id,
+	if _, err := s.kv.Put(context.TODO(), ipsPrefix + id,
 		id + "," + ip.String()+ "," + podName + "," + podNamespace); err != nil {
 		return false, nil
 	}
@@ -151,35 +153,22 @@ func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace strin
 	return true, nil
 }
 
-// LastReservedIP returns the last reserved IP if exists
-func (s *Store) LastReservedIP(rangeID string) (net.IP, error) {
-	resp, err := s.kv.Get(context.TODO(), "/ipam/last_reserved_ip"+rangeID)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp.Kvs) == 0 {
-		// case when initial state there is no this key.
-		return nil, nil
-	}
-	return net.ParseIP(string(resp.Kvs[0].Value)), nil
-}
-
 func (s *Store) Release(id string) error {
-	_, err := s.kv.Delete(context.TODO(), "/ipam/ips/" + id)
+	_, err := s.kv.Delete(context.TODO(), ipsPrefix + id)
 	return err
 }
 
 // N.B. This function eats errors to be tolerant and
 // release as much as possible
 func (s *Store) ReleaseByIP(ip net.IP) error {
-	resp, err := s.kv.Get(context.TODO(), "/ipam/ips/", clientv3.WithPrefix())
+	resp, err := s.kv.Get(context.TODO(), ipsPrefix, clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
 
 	if len(resp.Kvs) == 0 {
 		// TODO: improve.
-		return fmt.Errorf("No value in /ipam/ips")
+		return fmt.Errorf("No value in %s", ipsPrefix)
 	}
 
 	for _, item := range resp.Kvs {

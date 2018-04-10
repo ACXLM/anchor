@@ -31,7 +31,7 @@ Anchor governor is the manager of the etcd store. It is responsible for init the
 mkdir -p $GOPATH/src/github.com/daocloud
 cd $GOPATH/src/github.com/daocloud
 git clone https://github.com/DaoCloud/anchor
-cd anchor && go build
+cd anchor/anchor-ipam && go build
 docker build -t anchor:v0.2 .
 ```
 

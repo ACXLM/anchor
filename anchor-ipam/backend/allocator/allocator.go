@@ -16,9 +16,7 @@ package allocator
 
 import (
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 
@@ -157,49 +155,6 @@ type RangeIter struct {
 	// The IP and range index where we started iterating; if we hit this again, we're done.
 	startIP    net.IP
 	startRange int
-}
-
-// GetIter encapsulates the strategy for this allocator.
-// We use a round-robin strategy, attempting to evenly use the whole set.
-// More specifically, a crash-looping container will not see the same IP until
-// the entire range has been run through.
-// We may wish to consider avoiding recently-released IPs in the future.
-func (a *IPAllocator) GetIter() (*RangeIter, error) {
-	iter := RangeIter{
-		rangeset: a.rangeset,
-	}
-
-	// Round-robin by trying to allocate from the last reserved IP + 1
-	startFromLastReservedIP := false
-
-	// We might get a last reserved IP that is wrong if the range indexes changed.
-	// This is not critical, we just lose round-robin this one time.
-	lastReservedIP, err := a.store.LastReservedIP(a.rangeID)
-	if err != nil && !os.IsNotExist(err) {
-		log.Printf("Error retrieving last reserved ip: %v", err)
-	} else if lastReservedIP != nil {
-		startFromLastReservedIP = a.rangeset.Contains(lastReservedIP)
-	}
-
-	// Find the range in the set with this IP
-	if startFromLastReservedIP {
-		for i, r := range *a.rangeset {
-			if r.Contains(lastReservedIP) {
-				iter.rangeIdx = i
-				iter.startRange = i
-
-				// We advance the cursor on every Next(), so the first call
-				// to next() will return lastReservedIP + 1
-				iter.cur = lastReservedIP
-				break
-			}
-		}
-	} else {
-		iter.rangeIdx = 0
-		iter.startRange = 0
-		iter.startIP = (*a.rangeset)[0].RangeStart
-	}
-	return &iter, nil
 }
 
 // Next returns the next IP, its mask, and its gateway. Returns nil
