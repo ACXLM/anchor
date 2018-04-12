@@ -187,6 +187,7 @@ def get_static_ip_admin():
         result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
                                    tenant_name=data[3], app_name=data[5],
                                    service_name=data[4], container_id=data[0])._as_view_dict()
+    log.debug('get_static_ip_admin: {}'.format(result))
     return jsonify(result)
 
 
@@ -202,6 +203,7 @@ def get_static_ip_unadmin():
             result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
                                            tenant_name=data[3],app_name=data[5],
                                            service_name=data[4], container_id=data[0])._as_view_dict()
+    log.debug('get_static_ip_unadmin: {}'.format(result))
     return jsonify(result)
 
 
