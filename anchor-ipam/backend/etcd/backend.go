@@ -146,7 +146,7 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error) {
 	// TODO: lock
 	if _, err := s.kv.Put(context.TODO(), ipsPrefix + id,
-		id + "," + ip.String()+ "," + podName + "," + podNamespace); err != nil {
+		ip.String()+ "," + podName + "," + podNamespace); err != nil {
 		return false, nil
 	}
 

@@ -13,6 +13,72 @@ trap 'echo "SIGINT received, simply exiting..."; exit 0' SIGINT
 trap 'echo "SIGTERM received, simply exiting..."; exit 0' SIGTERM
 trap 'echo "SIGHUP received, simply exiting..."; exit 0' SIGHUP
 
+hostname=$(hostname)
+
+# Create macvlan interface
+if [ "$CREATE_MACVLAN" == "true" ]; then
+  OIFS=$IFS
+  IFS=" ;"
+  # Remove all spaces in the CLUSTER_NETWORK
+  CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
+  suffix=0
+  for t in $CLUSTER_NETWORK; do
+    if [ "$hostname" == "$(cut -d',' -f1 <<< "$t")" ]; then
+      master="$(cut -d',' -f2 <<< "$t")"
+      ip="$(cut -d',' -f3 <<< "$t")"
+      ip_for_macvlan="$(cut -d',' -f4 <<< "$t")"
+      gateway="$(cut -d',' -f5 <<< "$t")"
+      mask="$(cut -d',' -f6 <<< "$t")"
+
+      IFS=" ." read -r a b c d <<< "$ip"
+      ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
+
+      subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
+
+      delim=""
+      subnet=""
+      for e in {3..0}; do
+        ((octet = $subnet_int / (256 ** $e)))
+        ((subnet_int -= octet * 256 ** $e))
+        subnet+=$delim$octet
+        delim=.
+      done
+      subnet=$subnet/$mask
+
+      IFS=" ;"
+
+      echo "Creating macvlan interface..."
+
+      ifconfig $master promisc
+      while true; do
+        if [ ${#suffix} -gt 2 ]; then
+          echo "Max 100 interface is support" && exit 1
+        fi
+
+        if [ ${#suffix} -eq 1 ]; then
+          macvlan=acr0"$suffix"
+        else
+          macvlan=acr"$suffix"
+        fi
+        ip link add $macvlan link $master type macvlan mode bridge
+        if [ $? -eq 0 ]; then
+          break
+        fi
+        suffix=$((suffix+1))
+      done
+      ip addr add $ip_for_macvlan/$mask dev $macvlan noprefixroute
+      ip link set dev $macvlan up
+      ip route flush dev $macvlan up
+
+      ip route del $subnet dev $master > /dev/null 2>&1
+      ip route add $subnet dev $macvlan metrics 0
+      ip route del default
+      ip route add default via $gateway dev $macvlan
+    fi
+  done
+  IFS=$OIFS
+fi
+
 # The directory on the host where CNI networks are installed. Defaults to
 # /etc/cni/net.d, but can be overridden by setting CNI_NET_DIR.  This is used
 # for populating absolute paths in the CNI network config to assets

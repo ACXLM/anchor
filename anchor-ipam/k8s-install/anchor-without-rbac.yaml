@@ -9,9 +9,11 @@ data:
   # Example: "http://10.0.0.2:2379,http://10.0.0.3:2379"
   etcd_endpoints: "https://10.0.0.2:2379,https://10.0.0.3:2379"
 
-  # Configure the macvlan interface to use.
-  macvlan_interface: "eth0"
-
+  # Create a macvlan interface at the node, Only centos 7.2+ tested.
+  create_macvlan: "true"
+  # Only used when macvlan_init is true.
+  # hostname,network_card,IP_of_the_network_card,Unused_IP,gateway,mask
+  cluster_network: "node01,eth0,192.168.2.8,192.168.2.19,192.168.2.1,24;node01,eth3.2,10.0.12.3,10.0.12.190,10.0.12.1,24;node02,eth1.1,192.168.9.2,192.168.9.23,192.168.9.1,24"
   # The CNI network configuration to install on each node.
   cni_network_config: |-
     {
@@ -113,6 +115,18 @@ spec:
                 configMapKeyRef:
                   name: anchor-config
                   key: macvlan_interface
+
+            - name: CREATE_MACVLAN
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: create_macvlan
+            - name: CLUSTER_NETWORK
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: cluster_network
+
             # ETCD cert and key
             - name: ETCD_CA
               valueFrom:
