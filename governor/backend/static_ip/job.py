@@ -28,13 +28,13 @@ etcd = get_etcd()
 
 
 class StaticIP(object):
-    def __init__(self, static_ip, pod_name, container_id='', tenant_name='', service_name='', app_name=''):
+    def __init__(self, static_ip, pod_name, tenant_name='', service_name='', app_name=''):
         self.static_ip = static_ip
         self.pod_name = pod_name
         self.tenant_name = tenant_name
         self.app_name = app_name
         self.service_name = service_name
-        self.container_id = container_id
+
 
     def _as_dict(self):
         d = dict(
@@ -42,8 +42,7 @@ class StaticIP(object):
             tenant_name=self.tenant_name,
             app_name=self.app_name,
             service_name=self.service_name,
-            pod_name=self.pod_name,
-            container_id=self.container_id
+            pod_name=self.pod_name
         )
 
         return d
@@ -61,7 +60,7 @@ class Job(object):
         l = []
         for s in etcd.get_prefix(ETCD_STATICIP_STORE_IP_PREFIX):
             sip = s[0].split(",")
-            if sip[3] == self.tenant_name:
+            if sip[2] == self.tenant_name:
                 l.append(sip[0])
         return l
 
@@ -182,11 +181,11 @@ def get_static_ip_admin():
     log.debug("sip from admin:{}".format(sips))
     for s in sips:
         data = s[0].split(",")
-        if len(data) != 6:
+        if len(data) != 5:
             continue
-        result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
-                                   tenant_name=data[3], app_name=data[5],
-                                   service_name=data[4], container_id=data[0])._as_view_dict()
+        result[data[0]] = StaticIP(static_ip=data[0], pod_name=data[1],
+                                   tenant_name=data[2], app_name=data[3],
+                                   service_name=data[4])._as_view_dict()
     log.debug('get_static_ip_admin: {}'.format(result))
     return jsonify(result)
 
@@ -197,12 +196,12 @@ def get_static_ip_unadmin():
     log.debug("sip from unadmin:{}".format(sips))
     for s in sips:
         data = s[0].split(",")
-        if len(data) != 6:
+        if len(data) != 5:
             continue
-        if data[3] in get_tenant_names():
-            result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
-                                           tenant_name=data[3],app_name=data[5],
-                                           service_name=data[4], container_id=data[0])._as_view_dict()
+        if data[2] in get_tenant_names():
+            result[data[0]] = StaticIP(static_ip=data[0], pod_name=data[1],
+                                           tenant_name=data[2],app_name=data[3],
+                                           service_name=data[4])._as_view_dict()
     log.debug('get_static_ip_unadmin: {}'.format(result))
     return jsonify(result)
 
