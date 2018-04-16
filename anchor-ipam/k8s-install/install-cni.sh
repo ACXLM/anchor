@@ -13,46 +13,51 @@ trap 'echo "SIGINT received, simply exiting..."; exit 0' SIGINT
 trap 'echo "SIGTERM received, simply exiting..."; exit 0' SIGTERM
 trap 'echo "SIGHUP received, simply exiting..."; exit 0' SIGHUP
 
-hostname=$(hostname)
-
 # Create macvlan interface
 if [ "$CREATE_MACVLAN" == "true" ]; then
   OIFS=$IFS
-  IFS=" ;"
+  IFS=";"
+  hostname=$(hostname)
   # Remove all spaces in the CLUSTER_NETWORK
   CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
   suffix=0
   for t in $CLUSTER_NETWORK; do
-    if [ "$hostname" == "$(cut -d',' -f1 <<< "$t")" ]; then
-      master="$(cut -d',' -f2 <<< "$t")"
-      ip="$(cut -d',' -f3 <<< "$t")"
-      ip_for_macvlan="$(cut -d',' -f4 <<< "$t")"
-      gateway="$(cut -d',' -f5 <<< "$t")"
-      mask="$(cut -d',' -f6 <<< "$t")"
+    if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
+      master="$(echo $t | cut -d',' -f2)"
+      MACVLAN_INTERFACE=$master
+      ip="$(echo $t | cut -d',' -f3)"
+      ip_for_macvlan="$(echo $t | cut -d',' -f4)"
+      gateway="$(echo $t | cut -d',' -f5)"
+      mask="$(echo $t | cut -d',' -f6)"
+      # TODO: check invalid.
 
-      IFS=" ." read -r a b c d <<< "$ip"
+      a=$(echo $t | cut -d'.' -f1)
+      b=$(echo $t | cut -d'.' -f2)
+      c=$(echo $t | cut -d'.' -f3)
+      d=$(echo $t | cut -d'.' -f4)
       ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
-
       subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
 
       delim=""
       subnet=""
-      for e in {3..0}; do
-        ((octet = $subnet_int / (256 ** $e)))
-        ((subnet_int -= octet * 256 ** $e))
-        subnet+=$delim$octet
+
+      for e in 3 2 1 0; do
+        octet=$(($subnet_int / (256 ** $e)))
+        subnet_int=$((subnet_int -= octet * 256 ** $e))
+        subnet=$subnet$delim$octet
         delim=.
       done
       subnet=$subnet/$mask
 
-      IFS=" ;"
+      IFS=";"
 
       echo "Creating macvlan interface..."
 
-      ifconfig $master promisc
-      while true; do
+      ip link set $master promisc on
+      interface_created=false
+      while [ $interface_created == "false" ]; do
         if [ ${#suffix} -gt 2 ]; then
-          echo "Max 100 interface is support" && exit 1
+          echo "Max 100 interfaces are support" && exit 1
         fi
 
         if [ ${#suffix} -eq 1 ]; then
@@ -60,18 +65,25 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         else
           macvlan=acr"$suffix"
         fi
-        ip link add $macvlan link $master type macvlan mode bridge
-        if [ $? -eq 0 ]; then
+        # We write in this way because set -eu in the header of this script.
+        interface_created=true
+        ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
+        if [ $interface_created == "true" ]; then
           break
         fi
+
         suffix=$((suffix+1))
       done
-      ip addr add $ip_for_macvlan/$mask dev $macvlan noprefixroute
+      if [ $interface_created == "false" ]; then
+        echo "Cannot create macvlan interface, will exit soon"
+        exit 1
+      fi
+      ip addr add $ip_for_macvlan/$mask dev $macvlan
       ip link set dev $macvlan up
-      ip route flush dev $macvlan up
+      ip route flush dev $macvlan
 
-      ip route del $subnet dev $master > /dev/null 2>&1
-      ip route add $subnet dev $macvlan metrics 0
+      ip route del $subnet dev $master > /dev/null 2>&1 || true
+      ip route add $subnet dev $macvlan metric 0
       ip route del default
       ip route add default via $gateway dev $macvlan
     fi
