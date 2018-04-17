@@ -96,7 +96,7 @@ spec:
         # This container installs the anchor CNI binaries
         # and CNI network config file on each node.
         - name: anchor-install
-          image: daocloud.io/daocloud/anchor:v0.2
+          image: daocloud.io/daocloud/anchor:v0.2.1
           command: ["/install-cni.sh"]
           securityContext:
             capabilities:
