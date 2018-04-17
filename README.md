@@ -21,11 +21,21 @@ ip route add 10.100.160.0/24 dev mac0 metric 0
 
 Bridge with promiscuous mode is supported. The method will be added here later.
 
-# Anchor governor
+## Anchor governor
 
 Anchor governor is the manager of the etcd store. It is responsible for init the `User <-> IPs`, and display the usage of the IPs.
 
-# ETCD
+## Compile
+
+```shell
+mkdir -p $GOPATH/src/github.com/daocloud
+cd $GOPATH/src/github.com/daocloud
+git clone https://github.com/DaoCloud/anchor
+cd anchor/anchor-ipam && go build
+docker build -t anchor:v0.2 .
+```
+
+## ETCD
 
 Recently, please use etcd only as data store. Please intall or ensure that there is an etcd cluster available first. We used it as a distributed database.
 

@@ -13,6 +13,84 @@ trap 'echo "SIGINT received, simply exiting..."; exit 0' SIGINT
 trap 'echo "SIGTERM received, simply exiting..."; exit 0' SIGTERM
 trap 'echo "SIGHUP received, simply exiting..."; exit 0' SIGHUP
 
+# Create macvlan interface
+if [ "$CREATE_MACVLAN" == "true" ]; then
+  OIFS=$IFS
+  IFS=";"
+  hostname=$(hostname)
+  # Remove all spaces in the CLUSTER_NETWORK
+  CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
+  suffix=0
+  for t in $CLUSTER_NETWORK; do
+    if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
+      master="$(echo $t | cut -d',' -f2)"
+      MACVLAN_INTERFACE=$master
+      ip="$(echo $t | cut -d',' -f3)"
+      ip_for_macvlan="$(echo $t | cut -d',' -f4)"
+      gateway="$(echo $t | cut -d',' -f5)"
+      mask="$(echo $t | cut -d',' -f6)"
+      # TODO: check invalid.
+
+      a=$(echo $t | cut -d'.' -f1)
+      b=$(echo $t | cut -d'.' -f2)
+      c=$(echo $t | cut -d'.' -f3)
+      d=$(echo $t | cut -d'.' -f4)
+      ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
+      subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
+
+      delim=""
+      subnet=""
+
+      for e in 3 2 1 0; do
+        octet=$(($subnet_int / (256 ** $e)))
+        subnet_int=$((subnet_int -= octet * 256 ** $e))
+        subnet=$subnet$delim$octet
+        delim=.
+      done
+      subnet=$subnet/$mask
+
+      IFS=";"
+
+      echo "Creating macvlan interface..."
+
+      ip link set $master promisc on
+      interface_created=false
+      while [ $interface_created == "false" ]; do
+        if [ ${#suffix} -gt 2 ]; then
+          echo "Max 100 interfaces are support" && exit 1
+        fi
+
+        if [ ${#suffix} -eq 1 ]; then
+          macvlan=acr0"$suffix"
+        else
+          macvlan=acr"$suffix"
+        fi
+        # We write in this way because set -eu in the header of this script.
+        interface_created=true
+        ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
+        if [ $interface_created == "true" ]; then
+          break
+        fi
+
+        suffix=$((suffix+1))
+      done
+      if [ $interface_created == "false" ]; then
+        echo "Cannot create macvlan interface, will exit soon"
+        exit 1
+      fi
+      ip addr add $ip_for_macvlan/$mask dev $macvlan
+      ip link set dev $macvlan up
+      ip route flush dev $macvlan
+
+      ip route del $subnet dev $master > /dev/null 2>&1 || true
+      ip route add $subnet dev $macvlan metric 0
+      ip route del default
+      ip route add default via $gateway dev $macvlan
+    fi
+  done
+  IFS=$OIFS
+fi
+
 # The directory on the host where CNI networks are installed. Defaults to
 # /etc/cni/net.d, but can be overridden by setting CNI_NET_DIR.  This is used
 # for populating absolute paths in the CNI network config to assets
@@ -153,11 +231,15 @@ sed -i s/__CNI_MTU__/${CNI_MTU:-1500}/g $TMP_CONF
 
 # Use alternative command character "~", since these include a "/".
 sed -i s~__KUBECONFIG_FILEPATH__~${HOST_CNI_NET_DIR}/anchor-kubeconfig~g $TMP_CONF
-sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
-sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF
-sed -i s~__ETCD_CA_CERT_FILE__~${CNI_CONF_ETCD_CA:-}~g $TMP_CONF
+# TODO: make it back.
+# sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
+# sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF
+# sed -i s~__ETCD_CA_CERT_FILE__~${CNI_CONF_ETCD_CA:-}~g $TMP_CONF
 sed -i s~__ETCD_ENDPOINTS__~${ETCD_ENDPOINTS:-}~g $TMP_CONF
 sed -i s~__MACVLAN_INTERFACE__~${MACVLAN_INTERFACE:-}~g $TMP_CONF
+sed -i s~__ETCD_KEY_FILE__~${ETCD_KEY:-}~g $TMP_CONF
+sed -i s~__ETCD_CERT_FILE__~${ETCD_CERT:-}~g $TMP_CONF
+sed -i s~__ETCD_CA_CERT_FILE__~${ETCD_CA:-}~g $TMP_CONF
 # sed -i s~__LOG_LEVEL__~${LOG_LEVEL:-warn}~g $TMP_CONF
 
 CNI_CONF_NAME=${CNI_CONF_NAME:-10-anchor.conf}
