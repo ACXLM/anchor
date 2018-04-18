@@ -31,10 +31,10 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       mask="$(echo $t | cut -d',' -f6)"
       # TODO: check invalid.
 
-      a=$(echo $t | cut -d'.' -f1)
-      b=$(echo $t | cut -d'.' -f2)
-      c=$(echo $t | cut -d'.' -f3)
-      d=$(echo $t | cut -d'.' -f4)
+      a=$(echo $ip | cut -d'.' -f1)
+      b=$(echo $ip | cut -d'.' -f2)
+      c=$(echo $ip | cut -d'.' -f3)
+      d=$(echo $ip | cut -d'.' -f4)
       ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
       subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
 
