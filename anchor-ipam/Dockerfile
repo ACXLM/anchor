@@ -1,6 +1,9 @@
-FROM busybox
+FROM alpine
 
 LABEL maintainer "Haines Chan <yunhai.chen@daocloud.io>"
+
+RUN apk update --ipdate iproute2 \
+  && rm -rf /var/cache/apk/*
 
 ADD anchor-ipam /opt/cni/bin/anchor-ipam
 ADD k8s-install/install-cni.sh /install-cni.sh
