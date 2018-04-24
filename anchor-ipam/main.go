@@ -21,6 +21,7 @@ import (
 	"github.com/coreos/etcd/pkg/transport"
 	"net"
 	"strings"
+	"fmt"
 
 	"github.com/containernetworking/cni/pkg/skel"
 	"github.com/containernetworking/cni/pkg/types"
@@ -84,14 +85,12 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	ipAddrs := annot["cni.daocloud.io/ipAddrs"] // "10.0.0.[11-14],10.0.1.2"
 
-	currentUser := annot["cni.daocloud.io/currentUser"] // User01
-
 	// TODO:
-	if ipAddrs == "" || currentUser == "" {
-		return err
+	if ipAddrs == "" {
+		return fmt.Errorf("No ip found for pod " + string(k8sArgs.K8S_POD_NAME))
 	}
 
-	alloc := allocator.NewAnchorAllocator(currentUser, allocator.LoadRangeSet(ipAddrs), store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
+	alloc := allocator.NewAnchorAllocator(allocator.LoadRangeSet(ipAddrs), store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
 
 	ipConf, err := alloc.Get(args.ContainerID)
 	if err != nil {

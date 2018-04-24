@@ -32,16 +32,14 @@ type IPAllocator struct {
 }
 
 type AnchorAllocator struct {
-	user         string
 	requestedIPs *RangeSet
 	store        backend.Store
 	podName      string
 	podNamespace string
 }
 
-func NewAnchorAllocator(user string, requestedIPs *RangeSet, store backend.Store, podName string, podNamespace string) *AnchorAllocator {
+func NewAnchorAllocator(requestedIPs *RangeSet, store backend.Store, podName string, podNamespace string) *AnchorAllocator {
 	return &AnchorAllocator{
-		user:         user,
 		requestedIPs: requestedIPs,
 		store:        store,
 		podName:      podName,
@@ -62,9 +60,9 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 	a.store.Lock()
 	defer a.store.Unlock()
 	var errors []string
-	ips, err := a.store.GetOwnedIPs(a.user)
+	allocated, err := a.store.GetAllocatedIPs(a.podNamespace)
 	if err != nil {
-		errors = append(errors, "Cannot read owned IP from etcd")
+		errors = append(errors, "Cannot read allocated IP for " + a.podNamespace)
 		errors = append(errors, err.Error())
 	}
 
@@ -72,10 +70,10 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 
-	ownedIPs := LoadRangeSet(ips)
+	avails := LoadRangeSet(allocated)
 
-	if !a.requestedIPs.IsSubset(ownedIPs) {
-		return nil, fmt.Errorf("Requested IPs out of range of the available for user %s", a.user)
+	if !a.requestedIPs.IsSubset(avails) {
+		return nil, fmt.Errorf("Requested IPs out of range of the available for namespace %s", a.podNamespace)
 	}
 
 	usedByPod, err := a.store.GetUsedByPod(a.podName, a.podNamespace)
@@ -127,7 +125,7 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 		}
 	}
 	errors = append(errors, "No available IP")
-	errors = append(errors, ownedIPs.String())
+	errors = append(errors, avails.String())
 	errors = append(errors, a.requestedIPs.String())
 
 	return nil, fmt.Errorf(strings.Join(errors, ";"))
