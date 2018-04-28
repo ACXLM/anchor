@@ -1,3 +1,5 @@
+---
+
 # This ConfigMap is used to configure a self-hosted Anchor installation.
 kind: ConfigMap
 apiVersion: v1
@@ -6,14 +8,14 @@ metadata:
   namespace: kube-system
 data:
   # Configure this with the location of your etcd cluster.
-  # Example: "http://10.0.0.2:2379,http://10.0.0.3:2379"
-  etcd_endpoints: "http://10.0.0.2:2379,http://10.0.0.3:2379"
+  etcd_endpoints: "" # "https://10.0.1.2:2379,https://10.0.1.3:2379"
 
-  # Configure the macvlan interface to use.
-  macvlan_interface: "mac0"
-
-  # Configure the Anchor backend to use.
-
+  # Create a macvlan interface at the node, Only centos 7.2+ tested.
+  create_macvlan: "" # "true" or "false"
+  # Configure it only when create_macvlan is true.
+  # Fields: hostname,network_interface,ip_bind_network,avail_ip,gateway,mask. Use semicolon(;)
+  # to seperate multi items. Recently we only support one item per node
+  cluster_network: "" # "node01,eth0,10.0.2.8,10.0.2.19,10.0.2.1,24;node02,eth3.2,10.0.12.3,10.0.12.29,10.0.12.1,24"
   # The CNI network configuration to install on each node.
   cni_network_config: |-
     {
@@ -96,8 +98,12 @@ spec:
         # This container installs the anchor CNI binaries
         # and CNI network config file on each node.
         - name: anchor-install
-          image: anchor:v0.1
+          image: daocloud.io/daocloud/anchor:v0.2.3
           command: ["/install-cni.sh"]
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
           env:
             # The location of the Anchor etcd cluster.
             - name: ETCD_ENDPOINTS
@@ -105,12 +111,34 @@ spec:
                 configMapKeyRef:
                   name: anchor-config
                   key: etcd_endpoints
-            # MacVlan interface
-            - name: MACVLAN_INTERFACE
+
+            - name: CREATE_MACVLAN
               valueFrom:
                 configMapKeyRef:
                   name: anchor-config
-                  key: macvlan_interface
+                  key: create_macvlan
+            - name: CLUSTER_NETWORK
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: cluster_network
+
+            # ETCD cert and key
+            - name: ETCD_CA
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_ca
+            - name: ETCD_CERT
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_cert
+            - name: ETCD_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: etcd_key
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
               valueFrom:
