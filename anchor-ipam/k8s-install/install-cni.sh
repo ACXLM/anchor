@@ -24,13 +24,12 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
   for t in $CLUSTER_NETWORK; do
     if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
       master="$(echo $t | cut -d',' -f2)"
-      # This will be write into config file.
+      # This will be written into config file.
       MACVLAN_INTERFACE=$master
       ip="$(echo $t | cut -d',' -f3)"
-      ip_for_macvlan="$(echo $t | cut -d',' -f4)"
-      gateway="$(echo $t | cut -d',' -f5)"
-      mask="$(echo $t | cut -d',' -f6)"
-      # TODO: check invalid.
+      gateway="$(echo $t | cut -d',' -f4)"
+      mask="$(echo $t | cut -d',' -f5)"
+      # TODO: check invalidation of the inputs.
 
       noskip=false
       ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" > /dev/null 2>&1 || noskip=true
@@ -45,7 +44,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
 
         delim=""
         subnet=""
-
+        # Caculate the subnet.
         for e in 3 2 1 0; do
           octet=$(($subnet_int / (256 ** $e)))
           subnet_int=$((subnet_int -= octet * 256 ** $e))
@@ -53,10 +52,11 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
           delim=.
         done
         subnet=$subnet/$mask
-
+        # Restore the IFS.
         IFS=";"
 
-        echo "ip link set $master promisc on..."
+        # echo "ip link set $master promisc on..."
+        echo "Turnning $master promisc on..."
         ip link set $master promisc on
 
         echo "Creating macvlan interface..."
@@ -84,16 +84,20 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
           echo "Cannot create macvlan interface, will exit soon"
           exit 1
         fi
-        echo "ip addr add $ip_for_macvlan/$mask dev $macvlan..."
-        ip addr add $ip_for_macvlan/$mask dev $macvlan
-        echo "ip link set dev $macvlan up..."
+        echo "Deleting $ip from device $master..."
+        ip addr del $ip/$mask dev $master
+
+        echo "Adding $ip to device $macvlan..."
+        ip addr add $ip/$mask dev $macvlan
+
+        echo "Turnning on $macvlan and flushing the route infomation..."
         ip link set dev $macvlan up
-        echo "ip route flush dev $macvlan..."
         ip route flush dev $macvlan
 
-        echo "ip route replace $subnet dev $macvlan metric 0..."
+        echo "Replacing the route for $subnet..."
         ip route replace $subnet dev $macvlan metric 0
-        echo "ip route replace default via $gateway dev $macvlan..."
+
+        echo "Replacing the route for default..."
         ip route replace default via $gateway dev $macvlan
 
       else
@@ -109,7 +113,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         echo "    2. Something error and the administritor re-deploy the anchor daemonset"
         echo "Create macvlan interface skipped, please check it manually"
         echo ""
-        echo "What you can do is: "
+        echo "What you can do are: "
         echo "    1. Simply restart the network and all network info configed by anchor will be removed"
         echo "    2. Create macvlan insterface manully and config the ip route"
       fi
