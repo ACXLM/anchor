@@ -32,20 +32,22 @@ type IPAllocator struct {
 }
 
 type AnchorAllocator struct {
-	user         string
 	requestedIPs *RangeSet
 	store        backend.Store
 	podName      string
 	podNamespace string
+	app          string
+	service      string
 }
 
-func NewAnchorAllocator(user string, requestedIPs *RangeSet, store backend.Store, podName string, podNamespace string) *AnchorAllocator {
+func NewAnchorAllocator(requestedIPs *RangeSet, store backend.Store, podName string, podNamespace string, app string, service string) *AnchorAllocator {
 	return &AnchorAllocator{
-		user:         user,
 		requestedIPs: requestedIPs,
 		store:        store,
 		podName:      podName,
 		podNamespace: podNamespace,
+		app:          app,
+		service:      service,
 	}
 }
 
@@ -62,9 +64,14 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 	a.store.Lock()
 	defer a.store.Unlock()
 	var errors []string
-	ips, err := a.store.GetOwnedIPs(a.user)
+	allocated, err := a.store.GetAllocatedIPs(a.podNamespace)
 	if err != nil {
-		errors = append(errors, "Cannot read owned IP from etcd")
+		errors = append(errors, "Cannot read allocated IP for " + a.podNamespace)
+		errors = append(errors, err.Error())
+	}
+
+	avails, err := LoadRangeSet(allocated)
+	if err != nil {
 		errors = append(errors, err.Error())
 	}
 
@@ -72,15 +79,18 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 
-	ownedIPs := LoadRangeSet(ips)
-
-	if !a.requestedIPs.IsSubset(ownedIPs) {
-		return nil, fmt.Errorf("Requested IPs out of range of the available for user %s", a.user)
+	if !a.requestedIPs.IsSubset(avails) {
+		return nil, fmt.Errorf("Requested IPs out of range of the available for namespace %s", a.podNamespace)
 	}
 
-	usedByPod, err := a.store.GetUsedByPod(a.podName, a.podNamespace)
+	usedByPod, err := a.store.GetUsedBySvc(a.app, a.service)
 	if err != nil {
-		return nil, err
+		errors = append(errors, "Cannot read used ip for " + a.app + ", " + a.service)
+		errors = append(errors, err.Error())
+	}
+
+	if errors != nil {
+		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 
 	// Pick one unused from requestedIPs
@@ -111,7 +121,7 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 					continue
 
 				}
-				_, err = a.store.Reserve(id, iter, a.podName, a.podNamespace)
+				_, err = a.store.Reserve(id, iter, a.podName, a.podNamespace, a.app, a.service)
 				if err != nil {
 					// TODO: log
 					errors = append(errors, "Cannot write to db")
@@ -127,7 +137,7 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 		}
 	}
 	errors = append(errors, "No available IP")
-	errors = append(errors, ownedIPs.String())
+	errors = append(errors, avails.String())
 	errors = append(errors, a.requestedIPs.String())
 
 	return nil, fmt.Errorf(strings.Join(errors, ";"))

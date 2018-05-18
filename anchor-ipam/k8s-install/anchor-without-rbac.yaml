@@ -6,14 +6,14 @@ metadata:
   namespace: kube-system
 data:
   # Configure this with the location of your etcd cluster.
-  # Example: "http://10.0.0.2:2379,http://10.0.0.3:2379"
-  etcd_endpoints: "https://10.0.0.2:2379,https://10.0.0.3:2379"
+  etcd_endpoints: "" # "https://10.0.1.2:2379,https://10.0.1.3:2379"
 
   # Create a macvlan interface at the node, Only centos 7.2+ tested.
-  create_macvlan: "true"
-  # Only used when macvlan_init is true.
-  # hostname,network_card,IP_of_the_network_card,Unused_IP,gateway,mask
-  cluster_network: "node01,eth0,192.168.2.8,192.168.2.19,192.168.2.1,24;node01,eth3.2,10.0.12.3,10.0.12.190,10.0.12.1,24;node02,eth1.1,192.168.9.2,192.168.9.23,192.168.9.1,24"
+  create_macvlan: "" # "true" or "false"
+  # Configure it only when create_macvlan is true.
+  # Fields: hostname,master_interface,ip,gateway,mask. Use semicolon(;)
+  # to seperate multi items. Recently we only support one item per node
+  cluster_network: "" # "node01,eth0,10.0.2.8,10.0.2.1,24;node02,eth3.2,10.0.12.3,10.0.12.1,24"
   # The CNI network configuration to install on each node.
   cni_network_config: |-
     {
@@ -96,7 +96,7 @@ spec:
         # This container installs the anchor CNI binaries
         # and CNI network config file on each node.
         - name: anchor-install
-          image: daocloud.io/daocloud/anchor:v0.2.1
+          image: daocloud.io/daocloud/anchor:v0.2.5
           command: ["/install-cni.sh"]
           securityContext:
             capabilities:

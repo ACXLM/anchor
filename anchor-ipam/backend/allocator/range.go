@@ -123,7 +123,24 @@ func (r *Range) Contains(addr net.IP) bool {
 
 // IsSubset returns true if r is subset of r1.
 func (r *Range) IsSubset(r1 *Range) bool {
-	return r1.Contains(r.RangeStart) && r1.Contains(r.RangeEnd)
+	// different familes
+	if len(r.RangeStart) != len(r1.RangeStart) {
+		return false
+	}
+
+	// We don't use func Contains because it needs subnet not nil for work well.
+	if r1.RangeStart != nil {
+		if ip.Cmp(r.RangeStart, r1.RangeStart) < 0 {
+			return false
+		}
+	}
+
+	if r1.RangeEnd != nil {
+		if ip.Cmp(r.RangeEnd, r1.RangeEnd) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // Overlaps returns true if there is any overlap between ranges

@@ -18,6 +18,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sort"
+
+	"github.com/containernetworking/plugins/pkg/ip"
 )
 
 // Contains returns true if any range in this set contains an IP
@@ -27,20 +30,22 @@ func (s *RangeSet) Contains(addr net.IP) bool {
 }
 
 // IsSubset returns true if s is a subset of s1.
+// TODO: bug when s1 is nil or nil-nil.
 func (s *RangeSet) IsSubset(s1 *RangeSet) bool {
 	l := len(*s1)
 	for _, r := range *s {
-		cnt := 0
+		cursor := 0
 		for _, r1 := range *s1 {
 			if r.IsSubset(&r1) {
 				break
 			}
-			cnt++
+			cursor++
 		}
-		if cnt == l-1 {
+		if cursor == l {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -114,28 +119,88 @@ func (s *RangeSet) String() string {
 	return strings.Join(out, ",")
 }
 
-// LoadRangeSet loads RangeSet from string whose format likes "10.0.0.[2-4]; 10.0.1.4"
-// We don't init subnet and gateway here because only few ips are returned for every time,
-// and only those need subnet and gateway information.
-func LoadRangeSet(ipAddrs string) *RangeSet {
+
+func (s RangeSet) Len() int {
+	return len(s)
+}
+
+func (s RangeSet) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s RangeSet) Less(i, j int) bool {
+	a, b := s[i], s[j]
+
+	if ip.Cmp(a.RangeStart, b.RangeStart) != 0 {
+		return ip.Cmp(a.RangeStart, b.RangeStart) < 0
+	}
+	return ip.Cmp(a.RangeEnd, b.RangeEnd) < 0
+}
+
+// LoadRangeSet loads RangeSet from string. eg: "10.0.0.[2-4], 10.0.1.4, 10.0.1.5, 10.0.1.9",
+// this func return RangeSet with 3 ranges contained. No subnet and gateway information here.
+func LoadRangeSet(ipAddrs string) (*RangeSet, error) {
+	if ipAddrs == "" {
+		return nil, fmt.Errorf("Input of IP ranges is empty")
+	}
 	ret := RangeSet{}
-	ranges := strings.Split(ipAddrs, ";")
+	ranges := strings.Split(ipAddrs, ",")
+
 	for _, r := range ranges {
-		// TODO:
+		// Remove all lead blanks and tailed blanks.
+		r = strings.TrimSpace(r)
 		if strings.HasSuffix(r, "]") {
-			// Example of segments: ["10.0.1.", "4-8"]
+			// eg: ["10.0.1.", "4-8"]
 			segments := strings.Split(strings.TrimSuffix(r, "]"), "[")
 			suffixs := strings.Split(segments[1], "-")
+
+			start := net.ParseIP(segments[0] + suffixs[0])
+			end := net.ParseIP(segments[0] + suffixs[1])
+			if start == nil || end == nil {
+				return nil, fmt.Errorf("Input of IP ranges is valid")
+			}
+
 			ret = append(ret, Range{
-				RangeStart: net.ParseIP(segments[0] + suffixs[0]),
-				RangeEnd:   net.ParseIP(segments[0] + suffixs[1]),
+				RangeStart: start,
+				RangeEnd: end,
 			})
 		} else {
+			// eg: 10.1.8.9
+			current := net.ParseIP(r)
+			if current == nil {
+				return nil, fmt.Errorf("Input of IP range is valid")
+			}
 			ret = append(ret, Range{
-				RangeStart: net.ParseIP(r),
-				RangeEnd:   net.ParseIP(r),
+				RangeStart: current,
+				RangeEnd: current,
 			})
 		}
 	}
-	return &ret
+	sort.Sort(ret)
+
+	cursor := 0
+	l := len(ret)
+	i := 1
+	for ; i < l; i++ {
+		// A gap here
+		if ip.Cmp(ret[cursor].RangeEnd, ret[i].RangeStart) < 0 && !ret[i].RangeStart.Equal(ip.NextIP(ret[cursor].RangeEnd)) {
+			if i > cursor + 1 {
+				ret = append(ret[:cursor + 1], ret[i:]...)
+				gap := i - cursor - 1
+				l -= gap
+				i -= gap
+
+			}
+			cursor += 1
+		} else { // overlap case
+			if ip.Cmp(ret[i].RangeEnd, ret[cursor].RangeEnd) > 0 {
+				ret[cursor].RangeEnd = ret[i].RangeEnd
+			}
+		}
+	}
+
+	if i > cursor + 1 {
+		ret = append(ret[:cursor + 1], ret[i:]...)
+	}
+	return &ret, nil
 }

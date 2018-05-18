@@ -67,4 +67,12 @@ var _ = Describe("range sets", func() {
 		Expect(p1.Overlaps(&p2)).To(BeTrue())
 		Expect(p2.Overlaps(&p1)).To(BeTrue())
 	})
+
+	It("should discover issubset works right", func() {
+		p1 := "192.168.0.11,192.168.0.13"
+		r1 := LoadRangeSet(p1)
+		p2 := "192.168.0.11,192.168.0.13"
+		r2 := LoadRangeSet(p2)
+		Expect(p1.IsSubset(&p2)).To(BeTrue())
+	})
 })

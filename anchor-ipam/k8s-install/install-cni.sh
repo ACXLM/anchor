@@ -22,70 +22,104 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
   CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
   suffix=0
   for t in $CLUSTER_NETWORK; do
+    # TODO: ip addr show scope global to $ip up
     if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
       master="$(echo $t | cut -d',' -f2)"
+      # This will be written into config file.
       MACVLAN_INTERFACE=$master
       ip="$(echo $t | cut -d',' -f3)"
-      ip_for_macvlan="$(echo $t | cut -d',' -f4)"
-      gateway="$(echo $t | cut -d',' -f5)"
-      mask="$(echo $t | cut -d',' -f6)"
-      # TODO: check invalid.
+      gateway="$(echo $t | cut -d',' -f4)"
+      mask="$(echo $t | cut -d',' -f5)"
+      # TODO: check invalidation of the inputs.
 
-      a=$(echo $t | cut -d'.' -f1)
-      b=$(echo $t | cut -d'.' -f2)
-      c=$(echo $t | cut -d'.' -f3)
-      d=$(echo $t | cut -d'.' -f4)
-      ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
-      subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
+      noskip=false
+      ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" > /dev/null 2>&1 || noskip=true
+      if [ "$noskip" == "true" ]; then
+        # Create macvlan interface, recently we only support one interface per node
+        a=$(echo $ip | cut -d'.' -f1)
+        b=$(echo $ip | cut -d'.' -f2)
+        c=$(echo $ip | cut -d'.' -f3)
+        d=$(echo $ip | cut -d'.' -f4)
+        ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
+        subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
 
-      delim=""
-      subnet=""
+        delim=""
+        subnet=""
+        # Caculate the subnet.
+        for e in 3 2 1 0; do
+          octet=$(($subnet_int / (256 ** $e)))
+          subnet_int=$((subnet_int -= octet * 256 ** $e))
+          subnet=$subnet$delim$octet
+          delim=.
+        done
+        subnet=$subnet/$mask
+        # Restore the IFS.
+        IFS=";"
 
-      for e in 3 2 1 0; do
-        octet=$(($subnet_int / (256 ** $e)))
-        subnet_int=$((subnet_int -= octet * 256 ** $e))
-        subnet=$subnet$delim$octet
-        delim=.
-      done
-      subnet=$subnet/$mask
+        # echo "ip link set $master promisc on..."
+        echo "Turnning $master promisc on..."
+        ip link set $master promisc on
 
-      IFS=";"
+        echo "Creating macvlan interface..."
+        interface_created=false
+        while [ $interface_created == "false" ]; do
+          if [ ${#suffix} -gt 2 ]; then
+            echo "Max 100 interfaces are support" && exit 1
+          fi
 
-      echo "Creating macvlan interface..."
+          if [ ${#suffix} -eq 1 ]; then
+            macvlan=acr0"$suffix"
+          else
+            macvlan=acr"$suffix"
+          fi
+          # We write in this way because set -eu in the header of this script.
+          interface_created=true
+          ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
+          if [ $interface_created == "true" ]; then
+            break
+          fi
 
-      ip link set $master promisc on
-      interface_created=false
-      while [ $interface_created == "false" ]; do
-        if [ ${#suffix} -gt 2 ]; then
-          echo "Max 100 interfaces are support" && exit 1
+          suffix=$((suffix+1))
+        done
+        if [ $interface_created == "false" ]; then
+          echo "Cannot create macvlan interface, will exit soon"
+          exit 1
         fi
+        echo "Deleting $ip from device $master..."
+        ip addr del $ip/$mask dev $master
 
-        if [ ${#suffix} -eq 1 ]; then
-          macvlan=acr0"$suffix"
-        else
-          macvlan=acr"$suffix"
-        fi
-        # We write in this way because set -eu in the header of this script.
-        interface_created=true
-        ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
-        if [ $interface_created == "true" ]; then
-          break
-        fi
+        echo "Adding $ip to device $macvlan..."
+        ip addr add $ip/$mask dev $macvlan
 
-        suffix=$((suffix+1))
-      done
-      if [ $interface_created == "false" ]; then
-        echo "Cannot create macvlan interface, will exit soon"
-        exit 1
+        echo "Turnning on $macvlan and flushing the route infomation..."
+        ip link set dev $macvlan up
+        ip route flush dev $macvlan
+
+        echo "Replacing the route for $subnet..."
+        ip route replace $subnet dev $macvlan metric 0
+
+        echo "Replacing the route for default..."
+        ip route replace default via $gateway dev $macvlan
+
+        # Ping the gateway for fast flushing the cache in the switch.
+        ping -c 4 $gateway || true > /dev/null 2>&1
+      else
+        echo "MacVLAN insterface for anchor exists, Check the information below: "
+        echo ""
+        echo "Hostname: $hostname"
+        echo ""
+        ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" | grep -oE "acr[[:digit:]][[:digit:]]" | xargs -n 1 ip addr show
+
+        echo ""
+        echo "It may be caused by: "
+        echo "    1. The pod belongs to anchor daemonset get killed and restart by kubernetes"
+        echo "    2. Something error and the administritor re-deploy the anchor daemonset"
+        echo "Create macvlan interface skipped, please check it manually"
+        echo ""
+        echo "What you can do are: "
+        echo "    1. Simply restart the network and all network info configed by anchor will be removed"
+        echo "    2. Create macvlan insterface manully and config the ip route"
       fi
-      ip addr add $ip_for_macvlan/$mask dev $macvlan
-      ip link set dev $macvlan up
-      ip route flush dev $macvlan
-
-      ip route del $subnet dev $master > /dev/null 2>&1 || true
-      ip route add $subnet dev $macvlan metric 0
-      ip route del default
-      ip route add default via $gateway dev $macvlan
     fi
   done
   IFS=$OIFS

@@ -83,13 +83,13 @@ func (s *Store) Close() error {
 	// return s.Unlock()
 }
 
-func (s *Store) GetOwnedIPs(user string) (string, error) {
-	resp, err := s.kv.Get(context.TODO(), userPrefix + user)
+func (s *Store) GetAllocatedIPs(namespace string) (string, error) {
+	resp, err := s.kv.Get(context.TODO(), userPrefix + namespace)
 	if err != nil {
 		return "", err
 	}
 	if len(resp.Kvs) == 0 {
-		return "", fmt.Errorf("User %s not found in etcd", user)
+		return "", fmt.Errorf("Namespace %s not found in etcd", namespace)
 	}
 	return string(resp.Kvs[0].Value), nil
 
@@ -125,6 +125,8 @@ func (s *Store) GetGatewayForIP(ip net.IP) (*net.IPNet, *net.IP, error) {
 	return nil, nil, fmt.Errorf("Not subnet found for IP %s", ip.String())
 }
 
+
+// GetUsedByPod it is a bug, should be removed later.
 func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 	resp, err := s.kv.Get(context.TODO(), ipsPrefix, clientv3.WithPrefix())
 	if err != nil {
@@ -143,10 +145,29 @@ func (s *Store) GetUsedByPod(pod string, namespace string) ([]net.IP, error) {
 	return ret, nil
 }
 
-func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error) {
+// GetUsedBySvc
+func (s *Store) GetUsedBySvc(app string, svc string) ([]net.IP, error) {
+	resp, err := s.kv.Get(context.TODO(), ipsPrefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]net.IP, 0)
+
+	for _, item := range resp.Kvs {
+		// TODO: will bug if someone insert something to ipsPrefix ancidently.
+		row := strings.Split(string(item.Value), ",")
+		if row[3] == app && row[4] == svc {
+			ret = append(ret, net.ParseIP(row[0]))
+
+		}
+	}
+	return ret, nil
+}
+
+func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string, app string, service string) (bool, error) {
 	// TODO: lock
 	if _, err := s.kv.Put(context.TODO(), ipsPrefix + id,
-		ip.String()+ "," + podName + "," + podNamespace); err != nil {
+		ip.String()+ "," + podName + "," + podNamespace + "," + app + "," + service); err != nil {
 		return false, nil
 	}
 
