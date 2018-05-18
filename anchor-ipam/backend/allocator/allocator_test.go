@@ -20,7 +20,7 @@ import (
 
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/types/current"
-	fakestore "github.com/containernetworking/plugins/plugins/ipam/host-etcd/backend/testing"
+	fakestore "github.com/daocloud/anchor/anchor-ipam/backend/testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

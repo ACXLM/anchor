@@ -18,7 +18,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/containernetworking/plugins/plugins/ipam/host-etcd/backend"
+	"github.com/containernetworking/plugins/plugins/ipam/host-local/backend"
 )
 
 type FakeStore struct {

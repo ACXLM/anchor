@@ -157,17 +157,17 @@ func (s *Store) GetUsedBySvc(app string, svc string) ([]net.IP, error) {
 		// TODO: will bug if someone insert something to ipsPrefix ancidently.
 		row := strings.Split(string(item.Value), ",")
 		if row[3] == app && row[4] == svc {
-			ret = append(ret, net.ParseIP(row[1]))
+			ret = append(ret, net.ParseIP(row[0]))
 
 		}
 	}
 	return ret, nil
 }
 
-func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string) (bool, error) {
+func (s *Store) Reserve(id string, ip net.IP, podName string, podNamespace string, app string, service string) (bool, error) {
 	// TODO: lock
 	if _, err := s.kv.Put(context.TODO(), ipsPrefix + id,
-		ip.String()+ "," + podName + "," + podNamespace); err != nil {
+		ip.String()+ "," + podName + "," + podNamespace + "," + app + "," + service); err != nil {
 		return false, nil
 	}
 

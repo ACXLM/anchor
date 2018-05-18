@@ -81,21 +81,31 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	// 3. Get annotations from k8s_client via K8S_POD_NAME and K8S_POD_NAMESPACE.
-	_, annot, err := k8s.GetK8sPodInfo(k8sClient, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
-
+	label, annot, err := k8s.GetK8sPodInfo(k8sClient, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
+	if err != nil {
+		return fmt.Errorf("Error while read annotaions for pod" + err.Error())
+	}
 	ipAddrs := annot["cni.daocloud.io/ipAddrs"] // "10.0.0.[11-14],10.0.1.2"
 
+	app := label["io.daocloud.dce.app"]
+	service := label["io.daocloud.dce.name"]
+
+	if app == "" {
+		app = "unknown"
+	}
+	if service == "" {
+		service = "unknown"
+	}
 	// TODO:
 	if ipAddrs == "" {
 		return fmt.Errorf("No ip found for pod " + string(k8sArgs.K8S_POD_NAME))
 	}
 
 	ips, err := allocator.LoadRangeSet(ipAddrs)
-        if err != nil {
-                return fmt.Errorf("IP format is valid " + ipAddrs)
-        }
-
-	alloc := allocator.NewAnchorAllocator(ips, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
+	if err != nil {
+		return fmt.Errorf("IP format is valid " + ipAddrs)
+	}
+	alloc := allocator.NewAnchorAllocator(ips, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
 
 	ipConf, err := alloc.Get(args.ContainerID)
 	if err != nil {
@@ -111,6 +121,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 		},
 		GW: ipConf.Gateway,
 	}
+
 	result.Routes = append(result.Routes, &gw)
 
 	return types.PrintResult(result, confVersion)
