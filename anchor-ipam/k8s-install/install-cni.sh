@@ -22,6 +22,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
   CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
   suffix=0
   for t in $CLUSTER_NETWORK; do
+    # TODO: ip addr show scope global to $ip up
     if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
       master="$(echo $t | cut -d',' -f2)"
       # This will be written into config file.
@@ -100,6 +101,8 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         echo "Replacing the route for default..."
         ip route replace default via $gateway dev $macvlan
 
+        # Ping the gateway for fast flushing the cache in the switch.
+        ping -c 4 $gateway || true > /dev/null 2>&1
       else
         echo "MacVLAN insterface for anchor exists, Check the information below: "
         echo ""

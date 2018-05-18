@@ -90,7 +90,12 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("No ip found for pod " + string(k8sArgs.K8S_POD_NAME))
 	}
 
-	alloc := allocator.NewAnchorAllocator(allocator.LoadRangeSet(ipAddrs), store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
+	ips, err := allocator.LoadRangeSet(ipAddrs)
+        if err != nil {
+                return fmt.Errorf("IP format is valid " + ipAddrs)
+        }
+
+	alloc := allocator.NewAnchorAllocator(ips, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
 
 	ipConf, err := alloc.Get(args.ContainerID)
 	if err != nil {

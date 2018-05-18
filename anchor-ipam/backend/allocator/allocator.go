@@ -70,7 +70,10 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 
-	avails := LoadRangeSet(allocated)
+	avails, err := LoadRangeSet(allocated)
+	if err != nil {
+		errors = append(errors, err.Error())
+	}
 
 	if !a.requestedIPs.IsSubset(avails) {
 		return nil, fmt.Errorf("Requested IPs out of range of the available for namespace %s", a.podNamespace)
