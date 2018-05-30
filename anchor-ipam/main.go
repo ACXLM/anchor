@@ -86,6 +86,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("Error while read annotaions for pod" + err.Error())
 	}
 	ipAddrs := annot["cni.daocloud.io/ipAddrs"] // "10.0.0.[11-14],10.0.1.2"
+	userDefinedRoutes := annot["cni.daocloud.io/routes"]
+	userDefinedGateway := annot["cni.daocloud.io/gateway"]
 
 	app := label["io.daocloud.dce.app"]
 	service := label["io.daocloud.dce.name"]
@@ -114,16 +116,42 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	result.IPs = append(result.IPs, ipConf)
-	gw := types.Route{
-		Dst: net.IPNet{
-			IP:   net.IPv4zero,
-			Mask: net.IPv4Mask(0, 0, 0, 0),
-		},
-		GW: ipConf.Gateway,
+
+	if userDefinedGateway != "" {
+		// TODO: check invalid format
+		gw := types.Route{
+			Dst: net.IPNet{
+				IP:   net.IPv4zero,
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			},
+			GW: net.ParseIP(userDefinedGateway),
+		}
+		result.Routes = append(result.Routes, &gw)
+	} else {
+		gw := types.Route{
+			Dst: net.IPNet{
+				IP:   net.IPv4zero,
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			},
+			GW: ipConf.Gateway,
+		}
+		result.Routes = append(result.Routes, &gw)
 	}
 
-	result.Routes = append(result.Routes, &gw)
+	if userDefinedRoutes != "" {
+		// TODO: check invalid format
+		routes := strings.Split(userDefinedRoutes, ";")
+		for _, r := range routes {
+			_, dst, _ := net.ParseCIDR(strings.Split(r, ",")[0])
+			gateway := strings.Split(r, ",")[1]
 
+			gw := types.Route{
+				Dst: *dst,
+				GW: net.ParseIP(gateway),
+			}
+			result.Routes = append(result.Routes, &gw)
+		}
+	}
 	return types.PrintResult(result, confVersion)
 }
 
