@@ -274,6 +274,8 @@ sed -i s/__CNI_MTU__/${CNI_MTU:-1500}/g $TMP_CONF
 
 # Use alternative command character "~", since these include a "/".
 sed -i s~__KUBECONFIG_FILEPATH__~${HOST_CNI_NET_DIR}/anchor-kubeconfig~g $TMP_CONF
+sed -i s~__SERVICE_CLUSTER_IP_RANGE__~${SERVICE_CLUSTER_IP_RANGE:-}~g $TMP_CONF
+sed -i s~__NODE_IP__~${NODE_IP:-}~g $TMP_CONF
 # TODO: make it back.
 # sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
 # sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF

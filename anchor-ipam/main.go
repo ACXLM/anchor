@@ -152,6 +152,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 			result.Routes = append(result.Routes, &gw)
 		}
 	}
+	result.Routes = append(result.Routes, ipamConf.Routes...)
 	return types.PrintResult(result, confVersion)
 }
 
