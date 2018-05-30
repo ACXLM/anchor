@@ -28,6 +28,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       # This will be written into config file.
       MACVLAN_INTERFACE=$master
       ip="$(echo $t | cut -d',' -f3)"
+      NODE_IP=$ip
       gateway="$(echo $t | cut -d',' -f4)"
       mask="$(echo $t | cut -d',' -f5)"
       # TODO: check invalidation of the inputs.
@@ -56,11 +57,13 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         # Restore the IFS.
         IFS=";"
 
-        # echo "ip link set $master promisc on..."
         echo "Turnning $master promisc on..."
         ip link set $master promisc on
 
         echo "Creating macvlan interface..."
+        # Make acr00 interface use the mac address of the master.
+        # Only do this when the network monitor rely on the mac address for network monitor.
+        mac_address_master=$(ip link show $master | grep -oE "link/ether ([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}" | grep -oE "([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}")
         interface_created=false
         while [ $interface_created == "false" ]; do
           if [ ${#suffix} -gt 2 ]; then
@@ -74,7 +77,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
           fi
           # We write in this way because set -eu in the header of this script.
           interface_created=true
-          ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
+          ip link add $macvlan link $master address $mac_address_master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
           if [ $interface_created == "true" ]; then
             break
           fi
@@ -83,8 +86,14 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         done
         if [ $interface_created == "false" ]; then
           echo "Cannot create macvlan interface, will exit soon"
+          ip link set dev $master up
           exit 1
         fi
+
+        new_random_mac_address="ac"$(od -txC -An -N5 /dev/urandom | tr ' ' :)
+        ip link set dev $master address $new_random_mac_address
+        ip link set dev $master up
+
         echo "Deleting $ip from device $master..."
         ip addr del $ip/$mask dev $master
 
