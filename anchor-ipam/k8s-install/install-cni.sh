@@ -21,6 +21,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
   # Remove all spaces in the CLUSTER_NETWORK
   CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
   suffix=0
+  # hostname, master, ip, gateway, mask
   for t in $CLUSTER_NETWORK; do
     # TODO: ip addr show scope global to $ip up
     if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then

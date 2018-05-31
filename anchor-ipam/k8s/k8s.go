@@ -22,18 +22,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// func NewK8sClient(conf NetConf) (*kubernetes.Clientset, error) {
 func NewK8sClient(kuber Kubernetes, policy Policy) (*kubernetes.Clientset, error) {
 	// Some config can be passed in a kubeconfig file
 	kubeconfig := kuber.Kubeconfig
-	// TOOD: rename Kubernetes to something else.
 	// Config can be overridden by config passed in explicitly in the network config.
 	configOverrides := &clientcmd.ConfigOverrides{}
 
 	// If an API root is given, make sure we're using using the name / port rather than
 	// the full URL. Earlier versions of the config required the full `/api/v1/` extension,
 	// so split that off to ensure compatibility.
-	// conf.Policy.K8sAPIRoot = strings.Split(conf.Policy.K8sAPIRoot, "/api/")[0]
 	policy.K8sAPIRoot = strings.Split(policy.K8sAPIRoot, "/api/")[0]
 
 	var overridesMap = []struct {
@@ -66,8 +63,6 @@ func NewK8sClient(kuber Kubernetes, policy Policy) (*kubernetes.Clientset, error
 	if err != nil {
 		return nil, err
 	}
-
-	// logger.Debugf("Kubernetes config %v", config)
 
 	// Create the clientset
 	return kubernetes.NewForConfig(config)

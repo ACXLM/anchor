@@ -89,6 +89,11 @@ func cmdAdd(args *skel.CmdArgs) error {
 	userDefinedRoutes := annot["cni.daocloud.io/routes"]
 	userDefinedGateway := annot["cni.daocloud.io/gateway"]
 
+	userDefinedNameserver := annot["cni.daocloud.io/nameserver"]
+	userDefinedDomain := annot["cni.daocloud.io/domain"]
+	userDefinedSearch := annot["cni.daocloud.io/search"]
+	userDefinedOptions := annot["cni.daocloud.io/option"]
+
 	app := label["io.daocloud.dce.app"]
 	service := label["io.daocloud.dce.name"]
 
@@ -152,6 +157,24 @@ func cmdAdd(args *skel.CmdArgs) error {
 			result.Routes = append(result.Routes, &gw)
 		}
 	}
+
+	// dns := types.DNS{}
+	if userDefinedNameserver != "" {
+		servers :=  strings.Split(userDefinedNameserver, ",")
+		result.DNS.Nameservers = append(result.DNS.Nameservers, servers...)
+	}
+
+	if userDefinedDomain != "" {
+		result.DNS.Domain = userDefinedDomain
+	}
+
+	if userDefinedSearch != "" {
+		result.DNS.Search = append(result.DNS.Search, strings.Fields(userDefinedSearch)...)
+	}
+	if userDefinedOptions != "" {
+		result.DNS.Options = append(result.DNS.Options, strings.Fields(userDefinedOptions)...)
+	}
+
 	result.Routes = append(result.Routes, ipamConf.Routes...)
 	return types.PrintResult(result, confVersion)
 }
