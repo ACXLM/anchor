@@ -13,6 +13,7 @@ data:
 
   # Config this as the value you specify in kube-apiserver.
   service_cluster_ip_range: "" # "10.96.0.0/12"
+  anchor_mode: "macvlan" # "macvlan or octopus"
   # Create a macvlan interface at the node, Only centos 7.2+ tested.
   create_macvlan: "" # "true" or "false"
   # Configure it only when create_macvlan is true.
@@ -23,8 +24,9 @@ data:
   cni_network_config: |-
     {
         "name": "anchor",
-        "type": "macvlan",
+        "type": "__ANCHOR_MODE__",
         "master": "__MACVLAN_INTERFACE__",
+        "octopus": {"__OCTOPUS__}",
         "ipam": {
             "type": "anchor-ipam",
             "etcd_endpoints": "__ETCD_ENDPOINTS__",
@@ -140,6 +142,12 @@ spec:
                 configMapKeyRef:
                   name: anchor-config
                   key: service_cluster_ip_range
+
+            - name: ANCHOR_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: anchor-config
+                  key: anchor_mode
 
             # The CNI network config to install on each node.
             - name: CNI_NETWORK_CONFIG
