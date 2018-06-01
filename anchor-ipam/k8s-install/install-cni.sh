@@ -13,6 +13,8 @@ trap 'echo "SIGINT received, simply exiting..."; exit 0' SIGINT
 trap 'echo "SIGTERM received, simply exiting..."; exit 0' SIGTERM
 trap 'echo "SIGHUP received, simply exiting..."; exit 0' SIGHUP
 
+OCTOPUS=""
+NODE_IPS=""
 # Create macvlan interface
 if [ "$CREATE_MACVLAN" == "true" ]; then
   OIFS=$IFS
@@ -29,7 +31,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       # This will be written into config file.
 
       ip="$(echo $t | cut -d',' -f3)"
-      NODE_IP=$ip
+
       gateway="$(echo $t | cut -d',' -f4)"
       mask="$(echo $t | cut -d',' -f5)"
       # TODO: check invalidation of the inputs.
@@ -52,12 +54,11 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       subnet=$subnet/$mask
       # Restore the IFS.
       IFS=";"
-      echo "${subnet}\t${master}" >> /etc/cni/net.d/octopus.conf
-
+      NODE_IPS=$NODE_IPS\"$ip\",
       OCTOPUS=$OCTOPUS\"${subnet}\":\"${master}\",
       # Create macvlan interface, recently we only support one interface per node
       noskip=false
-      ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" > /dev/null 2>&1 || noskip=true
+      ip addr | grep -oE "acr[[:digit:]][[:digit:]]" > /dev/null 2>&1 || noskip=true
       if [ "$noskip" == "true" ]; then
         MACVLAN_INTERFACE=$master
         echo "Turnning $master promisc on..."
@@ -113,7 +114,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         ip route replace default via $gateway dev $macvlan
 
         # Ping the gateway for fast flushing the cache in the switch.
-        ping -c 4 $gateway > 2>&1 || true
+        ping -c 4 $gateway > /dev/null 2>&1 || true
       else
         echo "MacVLAN insterface for anchor exists, Check the information below: "
         echo ""
@@ -278,8 +279,6 @@ sed -i s/__CNI_MTU__/${CNI_MTU:-1500}/g $TMP_CONF
 
 # Use alternative command character "~", since these include a "/".
 sed -i s~__KUBECONFIG_FILEPATH__~${HOST_CNI_NET_DIR}/anchor-kubeconfig~g $TMP_CONF
-sed -i s~__SERVICE_CLUSTER_IP_RANGE__~${SERVICE_CLUSTER_IP_RANGE:-}~g $TMP_CONF
-sed -i s~__NODE_IP__~${NODE_IP:-}~g $TMP_CONF
 # TODO: make it back.
 # sed -i s~__ETCD_CERT_FILE__~${CNI_CONF_ETCD_CERT:-}~g $TMP_CONF
 # sed -i s~__ETCD_KEY_FILE__~${CNI_CONF_ETCD_KEY:-}~g $TMP_CONF
@@ -290,10 +289,12 @@ sed -i s~__ETCD_KEY_FILE__~${ETCD_KEY:-}~g $TMP_CONF
 sed -i s~__ETCD_CERT_FILE__~${ETCD_CERT:-}~g $TMP_CONF
 sed -i s~__ETCD_CA_CERT_FILE__~${ETCD_CA:-}~g $TMP_CONF
 
+sed -i s~__SERVICE_CLUSTER_IP_RANGE__~${SERVICE_CLUSTER_IP_RANGE:-}~g $TMP_CONF
+sed -i s~__NODE_IPS__~${NODE_IPS%,}~g $TMP_CONF
 sed -i s~__ANCHOR_MODE__~${ANCHOR_MODE:-}~g $TMP_CONF
 if [ "${ANCHOR_MODE}" == "octopus" ]; then
-  sed -i ~\"master\":~d $TMP_CONF
-  sed -i s~__OCTOPUS__~${OCTOPUS::-1}~g $TMP_CONF
+  sed -i /\"master\":/d $TMP_CONF
+  sed -i s~__OCTOPUS__~${OCTOPUS%,}~g $TMP_CONF
 elif [ "${ANCHOR_MODE}" == "macvlan" ]; then
   sed -i ~\"octopus\":~d $TMP_CONF
 fi

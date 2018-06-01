@@ -23,8 +23,9 @@ type Store interface {
 	Reserve(id string, ip net.IP, podName string, podNamespace string, app string, service string) (bool, error)
 	Release(id string) error
 	ReleaseByIP(ip net.IP) error
-	GetAllocatedIPs(user string) (string, error)
+	GetAllocatedIPs(namespace string) (string, error)
 	GetUsedByPod(pod string, namespace string) ([]net.IP, error)
+	GetUsedIPbyNamespace(namespace string) ([]net.IP, error)
 	GetUsedBySvc(pod string, namespace string) ([]net.IP, error)
 	GetGatewayForIP(ip net.IP) (*net.IPNet, *net.IP, error)
 }

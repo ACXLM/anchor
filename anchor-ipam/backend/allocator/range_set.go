@@ -204,3 +204,76 @@ func LoadRangeSet(ipAddrs string) (*RangeSet, error) {
 	}
 	return &ret, nil
 }
+
+// LoadRangeSetInSubnet loads RangeSet from string for given subnet.
+// eg: "10.0.0.[2-4], 10.0.1.4, 10.0.1.5, 10.0.1.9" 10.0.1.0/24
+// this func return RangeSet with 2 ranges contained. No subnet and gateway information here.
+func LoadRangeSetInSubnet(ipAddrs string, subnet *net.IPNet) (*RangeSet, error) {
+	if ipAddrs == "" {
+		return nil, fmt.Errorf("Input of IP ranges is empty")
+	}
+	ret := RangeSet{}
+	ranges := strings.Split(ipAddrs, ",")
+
+	for _, r := range ranges {
+		// Remove all lead blanks and tailed blanks.
+		r = strings.TrimSpace(r)
+		if strings.HasSuffix(r, "]") {
+			// eg: ["10.0.1.", "4-8"]
+			segments := strings.Split(strings.TrimSuffix(r, "]"), "[")
+			suffixs := strings.Split(segments[1], "-")
+
+			start := net.ParseIP(segments[0] + suffixs[0])
+			if !subnet.Contains(start) {
+				// This range don't belong to the subnet, so continue here.
+				continue
+			}
+			end := net.ParseIP(segments[0] + suffixs[1])
+			if start == nil || end == nil {
+				return nil, fmt.Errorf("Input of IP ranges is valid")
+			}
+
+			ret = append(ret, Range{
+				RangeStart: start,
+				RangeEnd: end,
+			})
+		} else {
+			// eg: 10.1.8.9
+			current := net.ParseIP(r)
+			if current == nil {
+				return nil, fmt.Errorf("Input of IP range is valid")
+			}
+			ret = append(ret, Range{
+				RangeStart: current,
+				RangeEnd: current,
+			})
+		}
+	}
+	sort.Sort(ret)
+
+	cursor := 0
+	l := len(ret)
+	i := 1
+	for ; i < l; i++ {
+		// A gap here
+		if ip.Cmp(ret[cursor].RangeEnd, ret[i].RangeStart) < 0 && !ret[i].RangeStart.Equal(ip.NextIP(ret[cursor].RangeEnd)) {
+			if i > cursor + 1 {
+				ret = append(ret[:cursor + 1], ret[i:]...)
+				gap := i - cursor - 1
+				l -= gap
+				i -= gap
+
+			}
+			cursor += 1
+		} else { // overlap case
+			if ip.Cmp(ret[i].RangeEnd, ret[cursor].RangeEnd) > 0 {
+				ret[cursor].RangeEnd = ret[i].RangeEnd
+			}
+		}
+	}
+
+	if i > cursor + 1 {
+		ret = append(ret[:cursor + 1], ret[i:]...)
+	}
+	return &ret, nil
+}

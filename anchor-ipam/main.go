@@ -85,7 +85,11 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return fmt.Errorf("Error while read annotaions for pod" + err.Error())
 	}
-	ipAddrs := annot["cni.daocloud.io/ipAddrs"] // "10.0.0.[11-14],10.0.1.2"
+
+
+
+
+	userDefinedSubnet := annot["cni.daocloud.io/subnet"] // "10.0.0.[11-14],10.0.1.2"
 	userDefinedRoutes := annot["cni.daocloud.io/routes"]
 	userDefinedGateway := annot["cni.daocloud.io/gateway"]
 
@@ -103,16 +107,16 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if service == "" {
 		service = "unknown"
 	}
-	// TODO:
-	if ipAddrs == "" {
+
+	if userDefinedSubnet == "" {
 		return fmt.Errorf("No ip found for pod " + string(k8sArgs.K8S_POD_NAME))
 	}
 
-	ips, err := allocator.LoadRangeSet(ipAddrs)
+	_, subnet, err := net.ParseCIDR(userDefinedSubnet)
 	if err != nil {
-		return fmt.Errorf("IP format is valid " + ipAddrs)
+		return err
 	}
-	alloc := allocator.NewAnchorAllocator(ips, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
+	alloc := allocator.NewAnchorAllocator(subnet, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
 
 	ipConf, err := alloc.Get(args.ContainerID)
 	if err != nil {

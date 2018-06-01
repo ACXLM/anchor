@@ -32,7 +32,7 @@ type IPAllocator struct {
 }
 
 type AnchorAllocator struct {
-	requestedIPs *RangeSet
+	subnet       *net.IPNet
 	store        backend.Store
 	podName      string
 	podNamespace string
@@ -40,9 +40,9 @@ type AnchorAllocator struct {
 	service      string
 }
 
-func NewAnchorAllocator(requestedIPs *RangeSet, store backend.Store, podName string, podNamespace string, app string, service string) *AnchorAllocator {
+func NewAnchorAllocator(subnet *net.IPNet, store backend.Store, podName string, podNamespace string, app string, service string) *AnchorAllocator {
 	return &AnchorAllocator{
-		requestedIPs: requestedIPs,
+		subnet:       subnet,
 		store:        store,
 		podName:      podName,
 		podNamespace: podNamespace,
@@ -60,49 +60,29 @@ func NewIPAllocator(s *RangeSet, store backend.Store, id int) *IPAllocator {
 }
 
 func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
-	// TODO: minimal lock range.
 	a.store.Lock()
 	defer a.store.Unlock()
 	var errors []string
-	allocated, err := a.store.GetAllocatedIPs(a.podNamespace)
-	if err != nil {
-		errors = append(errors, "Cannot read allocated IP for " + a.podNamespace)
-		errors = append(errors, err.Error())
-	}
 
-	avails, err := LoadRangeSet(allocated)
+	availsForNamespace, err := a.store.GetAllocatedIPs(a.podNamespace)
 	if err != nil {
 		errors = append(errors, err.Error())
 	}
-
-	if errors != nil {
-		return nil, fmt.Errorf(strings.Join(errors, ";"))
-	}
-
-	if !a.requestedIPs.IsSubset(avails) {
-		return nil, fmt.Errorf("Requested IPs out of range of the available for namespace %s", a.podNamespace)
-	}
-
-	usedByPod, err := a.store.GetUsedBySvc(a.app, a.service)
+	availsRangeSet, err := LoadRangeSetInSubnet(availsForNamespace, a.subnet)
 	if err != nil {
-		errors = append(errors, "Cannot read used ip for " + a.app + ", " + a.service)
+		errors = append(errors, err.Error())
+	}
+	// TODO: reduce usedByNamespace by subnet to save the time in compare stage.
+	usedByNamespace, err := a.store.GetUsedIPbyNamespace(a.podNamespace)
+	if err != nil {
 		errors = append(errors, err.Error())
 	}
 
-	if errors != nil {
-		return nil, fmt.Errorf(strings.Join(errors, ";"))
-	}
-
-	// Pick one unused from requestedIPs
-	// TODO: RangeFor
-	for _, r := range *a.requestedIPs {
-		// TODO: Not beautiful.
-		// TODO: Use iter
+	for _, r := range *availsRangeSet {
 		var iter net.IP
 		for iter = r.RangeStart; !iter.Equal(ip.NextIP(r.RangeEnd)); iter = ip.NextIP(iter) {
 			avail := true
-			for _, used := range usedByPod {
-				// if ip.Cmp(iter, used) == 0 {
+			for _, used := range usedByNamespace {
 				if iter.Equal(used) {
 					avail = false
 					break
@@ -117,14 +97,14 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 				}
 
 				if iter.Equal(*gw) {
-					errors = append(errors, "gateway")
+					errors = append(errors, "Can not lookup gateway for IP")
 					continue
 
 				}
 				_, err = a.store.Reserve(id, iter, a.podName, a.podNamespace, a.app, a.service)
 				if err != nil {
 					// TODO: log
-					errors = append(errors, "Cannot write to db")
+					errors = append(errors, "Cannot write allocated IP to database")
 					continue
 				}
 
@@ -136,13 +116,8 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 			}
 		}
 	}
-	errors = append(errors, "No available IP")
-	errors = append(errors, avails.String())
-	errors = append(errors, a.requestedIPs.String())
-
+	errors = append(errors, "Error when allocate IP for Pod, Maybe no IP available")
 	return nil, fmt.Errorf(strings.Join(errors, ";"))
-
-	// return nil, fmt.Errorf("No available IP for requested IPs")
 }
 
 // Release clears all IPs allocated for the container with given ID
