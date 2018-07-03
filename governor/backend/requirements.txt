@@ -2,7 +2,7 @@ Flask==0.12.2
 Flask-Cors==3.0.2
 Flask-RESTful==0.3.6
 
-dce-plugin-sdk==0.1
+dce-plugin-sdk==1.0.1
 docker==2.3.0
 
 schedule==0.3.2
