@@ -243,6 +243,10 @@ func LoadRangeSetInSubnet(ipAddrs string, subnet *net.IPNet) (*RangeSet, error) 
 			if current == nil {
 				return nil, fmt.Errorf("Input of IP range is valid")
 			}
+			if !subnet.Contains(current) {
+				// This range don't belong to the subnet, so continue here.
+				continue
+			}
 			ret = append(ret, Range{
 				RangeStart: current,
 				RangeEnd: current,

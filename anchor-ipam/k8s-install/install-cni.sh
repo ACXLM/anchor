@@ -56,11 +56,11 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       IFS=";"
       NODE_IPS=$NODE_IPS\"$ip\",
       OCTOPUS=$OCTOPUS\"${subnet}\":\"${master}\",
+      MACVLAN_INTERFACE=$master
       # Create macvlan interface, recently we only support one interface per node
       noskip=false
       ip addr | grep -oE "acr[[:digit:]][[:digit:]]" > /dev/null 2>&1 || noskip=true
       if [ "$noskip" == "true" ]; then
-        MACVLAN_INTERFACE=$master
         echo "Turnning $master promisc on..."
         ip link set $master promisc on
         echo "Creating macvlan interface..."
@@ -296,7 +296,7 @@ if [ "${ANCHOR_MODE}" == "octopus" ]; then
   sed -i /\"master\":/d $TMP_CONF
   sed -i s~__OCTOPUS__~${OCTOPUS%,}~g $TMP_CONF
 elif [ "${ANCHOR_MODE}" == "macvlan" ]; then
-  sed -i ~\"octopus\":~d $TMP_CONF
+  sed -i /\"octopus\":/d $TMP_CONF
 fi
 
 # sed -i s~__LOG_LEVEL__~${LOG_LEVEL:-warn}~g $TMP_CONF

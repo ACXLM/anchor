@@ -40,18 +40,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-
 	result := &current.Result{}
-
-	// TODO: test
-	if ipamConf.ResolvConf != "" {
-		dns, err := parseResolvConf(ipamConf.ResolvConf)
-		if err != nil {
-			return err
-		}
-		result.DNS = *dns
-	}
-
 
 	tlsInfo := &transport.TLSInfo{
 		CertFile:      ipamConf.CertFile,
@@ -86,17 +75,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("Error while read annotaions for pod" + err.Error())
 	}
 
-
-
-
-	userDefinedSubnet := annot["cni.daocloud.io/subnet"] // "10.0.0.[11-14],10.0.1.2"
+	userDefinedSubnet := annot["cni.daocloud.io/subnet"]
 	userDefinedRoutes := annot["cni.daocloud.io/routes"]
 	userDefinedGateway := annot["cni.daocloud.io/gateway"]
-
-	userDefinedNameserver := annot["cni.daocloud.io/nameserver"]
-	userDefinedDomain := annot["cni.daocloud.io/domain"]
-	userDefinedSearch := annot["cni.daocloud.io/search"]
-	userDefinedOptions := annot["cni.daocloud.io/option"]
 
 	app := label["io.daocloud.dce.app"]
 	service := label["io.daocloud.dce.name"]
@@ -116,18 +97,8 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-	alloc := allocator.NewAnchorAllocator(subnet, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
-
-	ipConf, err := alloc.Get(args.ContainerID)
-	if err != nil {
-		// TODO:
-		return err
-	}
-
-	result.IPs = append(result.IPs, ipConf)
 
 	if userDefinedGateway != "" {
-		// TODO: check invalid format
 		gw := types.Route{
 			Dst: net.IPNet{
 				IP:   net.IPv4zero,
@@ -136,19 +107,9 @@ func cmdAdd(args *skel.CmdArgs) error {
 			GW: net.ParseIP(userDefinedGateway),
 		}
 		result.Routes = append(result.Routes, &gw)
-	} else {
-		gw := types.Route{
-			Dst: net.IPNet{
-				IP:   net.IPv4zero,
-				Mask: net.IPv4Mask(0, 0, 0, 0),
-			},
-			GW: ipConf.Gateway,
-		}
-		result.Routes = append(result.Routes, &gw)
 	}
 
 	if userDefinedRoutes != "" {
-		// TODO: check invalid format
 		routes := strings.Split(userDefinedRoutes, ";")
 		for _, r := range routes {
 			_, dst, _ := net.ParseCIDR(strings.Split(r, ",")[0])
@@ -161,25 +122,53 @@ func cmdAdd(args *skel.CmdArgs) error {
 			result.Routes = append(result.Routes, &gw)
 		}
 	}
+	// result.Routes = append(result.Routes, ipamConf.Routes...)
 
-	// dns := types.DNS{}
-	if userDefinedNameserver != "" {
-		servers :=  strings.Split(userDefinedNameserver, ",")
-		result.DNS.Nameservers = append(result.DNS.Nameservers, servers...)
+	if ipamConf.Service_IPNet != "" {
+		_, service_net, err := net.ParseCIDR(ipamConf.Service_IPNet)
+		if err != nil {
+			return fmt.Errorf("Invalid service cluster ip range: " + ipamConf.Service_IPNet)
+		}
+		for _, node_ip := range ipamConf.Node_IPs {
+			if subnet.Contains(net.ParseIP(node_ip)) {
+				sn := types.Route{
+					Dst: *service_net,
+					GW: net.ParseIP(node_ip),
+				}
+				result.Routes = append(result.Routes, &sn)
+				break
+			}
+			// If none of node_ip in subnet, nothing to do.
+		}
 	}
 
-	if userDefinedDomain != "" {
-		result.DNS.Domain = userDefinedDomain
+	userDefinedNameserver  :=  annot["cni.daocloud.io/nameserver"]
+	userDefinedDomain      :=  annot["cni.daocloud.io/domain"]
+	userDefinedSearch      :=  annot["cni.daocloud.io/search"]
+	userDefinedOptions     :=  annot["cni.daocloud.io/options"]
+	dns, err := generateDNS(userDefinedNameserver, userDefinedDomain, userDefinedSearch, userDefinedOptions)
+	result.DNS = *dns
+
+	alloc := allocator.NewAnchorAllocator(subnet, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
+
+	ipConf, err := alloc.Get(args.ContainerID)
+	if err != nil {
+		return err
 	}
 
-	if userDefinedSearch != "" {
-		result.DNS.Search = append(result.DNS.Search, strings.Fields(userDefinedSearch)...)
+	// Below here, if error, we should call store.Release(args.ContainerID) to release the IP written to database.
+	if userDefinedGateway == "" {
+		gw := types.Route{
+			Dst: net.IPNet{
+				IP:   net.IPv4zero,
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			},
+			GW: ipConf.Gateway,
+		}
+		result.Routes = append(result.Routes, &gw)
 	}
-	if userDefinedOptions != "" {
-		result.DNS.Options = append(result.DNS.Options, strings.Fields(userDefinedOptions)...)
-	}
+	result.IPs = append(result.IPs, ipConf)
 
-	result.Routes = append(result.Routes, ipamConf.Routes...)
 	return types.PrintResult(result, confVersion)
 }
 
