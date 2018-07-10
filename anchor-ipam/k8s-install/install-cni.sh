@@ -13,6 +13,8 @@ trap 'echo "SIGINT received, simply exiting..."; exit 0' SIGINT
 trap 'echo "SIGTERM received, simply exiting..."; exit 0' SIGTERM
 trap 'echo "SIGHUP received, simply exiting..."; exit 0' SIGHUP
 
+OCTOPUS=""
+NODE_IPS=""
 # Create macvlan interface
 if [ "$CREATE_MACVLAN" == "true" ]; then
   OIFS=$IFS
@@ -21,46 +23,50 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
   # Remove all spaces in the CLUSTER_NETWORK
   CLUSTER_NETWORK=${CLUSTER_NETWORK//[[:blank:]]/}
   suffix=0
+  # hostname, master, ip, gateway, mask
   for t in $CLUSTER_NETWORK; do
     # TODO: ip addr show scope global to $ip up
     if [ "$hostname" == "$(echo $t | cut -d',' -f1)" ]; then
       master="$(echo $t | cut -d',' -f2)"
       # This will be written into config file.
-      MACVLAN_INTERFACE=$master
+
       ip="$(echo $t | cut -d',' -f3)"
+
       gateway="$(echo $t | cut -d',' -f4)"
       mask="$(echo $t | cut -d',' -f5)"
       # TODO: check invalidation of the inputs.
+      a=$(echo $ip | cut -d'.' -f1)
+      b=$(echo $ip | cut -d'.' -f2)
+      c=$(echo $ip | cut -d'.' -f3)
+      d=$(echo $ip | cut -d'.' -f4)
+      ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
+      subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
 
+      delim=""
+      subnet=""
+      # Caculate the subnet.
+      for e in 3 2 1 0; do
+        octet=$(($subnet_int / (256 ** $e)))
+        subnet_int=$((subnet_int -= octet * 256 ** $e))
+        subnet=$subnet$delim$octet
+        delim=.
+      done
+      subnet=$subnet/$mask
+      # Restore the IFS.
+      IFS=";"
+      NODE_IPS=$NODE_IPS\"$ip\",
+      OCTOPUS=$OCTOPUS\"${subnet}\":\"${master}\",
+      MACVLAN_INTERFACE=$master
+      # Create macvlan interface, recently we only support one interface per node
       noskip=false
-      ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" > /dev/null 2>&1 || noskip=true
+      ip addr | grep -oE "acr[[:digit:]][[:digit:]]" > /dev/null 2>&1 || noskip=true
       if [ "$noskip" == "true" ]; then
-        # Create macvlan interface, recently we only support one interface per node
-        a=$(echo $ip | cut -d'.' -f1)
-        b=$(echo $ip | cut -d'.' -f2)
-        c=$(echo $ip | cut -d'.' -f3)
-        d=$(echo $ip | cut -d'.' -f4)
-        ip_int="$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))"
-        subnet_int=$(($ip_int & (0xffffffff - (1<<32-$mask) + 1)))
-
-        delim=""
-        subnet=""
-        # Caculate the subnet.
-        for e in 3 2 1 0; do
-          octet=$(($subnet_int / (256 ** $e)))
-          subnet_int=$((subnet_int -= octet * 256 ** $e))
-          subnet=$subnet$delim$octet
-          delim=.
-        done
-        subnet=$subnet/$mask
-        # Restore the IFS.
-        IFS=";"
-
-        # echo "ip link set $master promisc on..."
         echo "Turnning $master promisc on..."
         ip link set $master promisc on
-
         echo "Creating macvlan interface..."
+        # Make acr00 interface use the mac address of the master.
+        # Only do this when the network monitor rely on the mac address for network monitor.
+        mac_address_master=$(ip link show $master | grep -oE "link/ether ([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}" | grep -oE "([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}")
         interface_created=false
         while [ $interface_created == "false" ]; do
           if [ ${#suffix} -gt 2 ]; then
@@ -74,7 +80,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
           fi
           # We write in this way because set -eu in the header of this script.
           interface_created=true
-          ip link add $macvlan link $master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
+          ip link add $macvlan link $master address $mac_address_master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
           if [ $interface_created == "true" ]; then
             break
           fi
@@ -83,8 +89,14 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         done
         if [ $interface_created == "false" ]; then
           echo "Cannot create macvlan interface, will exit soon"
+          ip link set dev $master up
           exit 1
         fi
+
+        new_random_mac_address="ac"$(od -txC -An -N5 /dev/urandom | tr ' ' :)
+        ip link set dev $master address $new_random_mac_address
+        ip link set dev $master up
+
         echo "Deleting $ip from device $master..."
         ip addr del $ip/$mask dev $master
 
@@ -102,7 +114,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         ip route replace default via $gateway dev $macvlan
 
         # Ping the gateway for fast flushing the cache in the switch.
-        ping -c 4 $gateway || true > /dev/null 2>&1
+        ping -c 4 $gateway > /dev/null 2>&1 || true
       else
         echo "MacVLAN insterface for anchor exists, Check the information below: "
         echo ""
@@ -112,13 +124,15 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
 
         echo ""
         echo "It may be caused by: "
-        echo "    1. The pod belongs to anchor daemonset get killed and restart by kubernetes"
-        echo "    2. Something error and the administritor re-deploy the anchor daemonset"
+        echo "    1. This interface is not main interface, there no need to create interface on it."
+        echo "    2. The pod belongs to anchor daemonset get killed and restart by kubernetes"
+        echo "    3. Something error and the administritor re-deploy the anchor daemonset"
         echo "Create macvlan interface skipped, please check it manually"
         echo ""
         echo "What you can do are: "
-        echo "    1. Simply restart the network and all network info configed by anchor will be removed"
-        echo "    2. Create macvlan insterface manully and config the ip route"
+        echo "    1. Nothing to do"
+        echo "    2. Simply restart the network and all network info configed by anchor will be removed"
+        echo "    3. Create macvlan insterface manully and config the ip route"
       fi
     fi
   done
@@ -274,8 +288,18 @@ sed -i s~__MACVLAN_INTERFACE__~${MACVLAN_INTERFACE:-}~g $TMP_CONF
 sed -i s~__ETCD_KEY_FILE__~${ETCD_KEY:-}~g $TMP_CONF
 sed -i s~__ETCD_CERT_FILE__~${ETCD_CERT:-}~g $TMP_CONF
 sed -i s~__ETCD_CA_CERT_FILE__~${ETCD_CA:-}~g $TMP_CONF
-# sed -i s~__LOG_LEVEL__~${LOG_LEVEL:-warn}~g $TMP_CONF
 
+sed -i s~__SERVICE_CLUSTER_IP_RANGE__~${SERVICE_CLUSTER_IP_RANGE:-}~g $TMP_CONF
+sed -i s~__NODE_IPS__~${NODE_IPS%,}~g $TMP_CONF
+sed -i s~__ANCHOR_MODE__~${ANCHOR_MODE:-}~g $TMP_CONF
+if [ "${ANCHOR_MODE}" == "octopus" ]; then
+  sed -i /\"master\":/d $TMP_CONF
+  sed -i s~__OCTOPUS__~${OCTOPUS%,}~g $TMP_CONF
+elif [ "${ANCHOR_MODE}" == "macvlan" ]; then
+  sed -i /\"octopus\":/d $TMP_CONF
+fi
+
+# sed -i s~__LOG_LEVEL__~${LOG_LEVEL:-warn}~g $TMP_CONF
 CNI_CONF_NAME=${CNI_CONF_NAME:-10-anchor.conf}
 CNI_OLD_CONF_NAME=${CNI_OLD_CONF_NAME:-10-anchor.conf}
 

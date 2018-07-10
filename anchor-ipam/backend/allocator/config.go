@@ -38,19 +38,21 @@ type Net struct {
 // range directly, and wish to preserve backwards compatability
 type IPAMConfig struct {
 	Name string
-	Type string `json:"type"`
+	Type string                  `json:"type"`
 	// etcd client
-	Endpoints string `json:"etcd_endpoints"`
+	Endpoints     string         `json:"etcd_endpoints"`
 	// Used for k8s client
-	Kubernetes k8s.Kubernetes `json:"kubernetes"`
-	Policy     k8s.Policy     `json:"policy"`
+	Kubernetes    k8s.Kubernetes `json:"kubernetes"`
+	Policy        k8s.Policy     `json:"policy"`
 	// etcd perm files
-	CertFile      string `json:"etcd_cert_file"`
-	KeyFile       string `json:"etcd_key_file"`
-	TrustedCAFile string `json:"etcd_ca_cert_file"`
+	CertFile      string         `json:"etcd_cert_file"`
+	KeyFile       string         `json:"etcd_key_file"`
+	TrustedCAFile string         `json:"etcd_ca_cert_file"`
+	Service_IPNet string         `json:"service_ipnet"`
+	Node_IPs      []string       `json:"node_ips"`
 	// additional network config for pods
-	Routes     []*types.Route `json:"routes,omitempty"`
-	ResolvConf string         `json:"resolvConf,omitempty"`
+	Routes        []*types.Route `json:"routes,omitempty"`
+	ResolvConf    string         `json:"resolvConf,omitempty"`
 
 	// Args       *struct {
 	//       A *IPAMArgs `json:"cni"`

@@ -40,18 +40,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return err
 	}
-
 	result := &current.Result{}
-
-	// TODO: test
-	if ipamConf.ResolvConf != "" {
-		dns, err := parseResolvConf(ipamConf.ResolvConf)
-		if err != nil {
-			return err
-		}
-		result.DNS = *dns
-	}
-
 
 	tlsInfo := &transport.TLSInfo{
 		CertFile:      ipamConf.CertFile,
@@ -85,7 +74,10 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if err != nil {
 		return fmt.Errorf("Error while read annotaions for pod" + err.Error())
 	}
-	ipAddrs := annot["cni.daocloud.io/ipAddrs"] // "10.0.0.[11-14],10.0.1.2"
+
+	userDefinedSubnet := annot["cni.daocloud.io/subnet"]
+	userDefinedRoutes := annot["cni.daocloud.io/routes"]
+	userDefinedGateway := annot["cni.daocloud.io/gateway"]
 
 	app := label["io.daocloud.dce.app"]
 	service := label["io.daocloud.dce.name"]
@@ -96,33 +88,86 @@ func cmdAdd(args *skel.CmdArgs) error {
 	if service == "" {
 		service = "unknown"
 	}
-	// TODO:
-	if ipAddrs == "" {
+
+	if userDefinedSubnet == "" {
 		return fmt.Errorf("No ip found for pod " + string(k8sArgs.K8S_POD_NAME))
 	}
 
-	ips, err := allocator.LoadRangeSet(ipAddrs)
+	_, subnet, err := net.ParseCIDR(userDefinedSubnet)
 	if err != nil {
-		return fmt.Errorf("IP format is valid " + ipAddrs)
-	}
-	alloc := allocator.NewAnchorAllocator(ips, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
-
-	ipConf, err := alloc.Get(args.ContainerID)
-	if err != nil {
-		// TODO:
 		return err
 	}
 
-	result.IPs = append(result.IPs, ipConf)
-	gw := types.Route{
-		Dst: net.IPNet{
-			IP:   net.IPv4zero,
-			Mask: net.IPv4Mask(0, 0, 0, 0),
-		},
-		GW: ipConf.Gateway,
+	if userDefinedGateway != "" {
+		gw := types.Route{
+			Dst: net.IPNet{
+				IP:   net.IPv4zero,
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			},
+			GW: net.ParseIP(userDefinedGateway),
+		}
+		result.Routes = append(result.Routes, &gw)
 	}
 
-	result.Routes = append(result.Routes, &gw)
+	if userDefinedRoutes != "" {
+		routes := strings.Split(userDefinedRoutes, ";")
+		for _, r := range routes {
+			_, dst, _ := net.ParseCIDR(strings.Split(r, ",")[0])
+			gateway := strings.Split(r, ",")[1]
+
+			gw := types.Route{
+				Dst: *dst,
+				GW: net.ParseIP(gateway),
+			}
+			result.Routes = append(result.Routes, &gw)
+		}
+	}
+	// result.Routes = append(result.Routes, ipamConf.Routes...)
+
+	if ipamConf.Service_IPNet != "" {
+		_, service_net, err := net.ParseCIDR(ipamConf.Service_IPNet)
+		if err != nil {
+			return fmt.Errorf("Invalid service cluster ip range: " + ipamConf.Service_IPNet)
+		}
+		for _, node_ip := range ipamConf.Node_IPs {
+			if subnet.Contains(net.ParseIP(node_ip)) {
+				sn := types.Route{
+					Dst: *service_net,
+					GW: net.ParseIP(node_ip),
+				}
+				result.Routes = append(result.Routes, &sn)
+				break
+			}
+			// If none of node_ip in subnet, nothing to do.
+		}
+	}
+
+	userDefinedNameserver  :=  annot["cni.daocloud.io/nameserver"]
+	userDefinedDomain      :=  annot["cni.daocloud.io/domain"]
+	userDefinedSearch      :=  annot["cni.daocloud.io/search"]
+	userDefinedOptions     :=  annot["cni.daocloud.io/options"]
+	dns, err := generateDNS(userDefinedNameserver, userDefinedDomain, userDefinedSearch, userDefinedOptions)
+	result.DNS = *dns
+
+	alloc := allocator.NewAnchorAllocator(subnet, store, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE), app, service)
+
+	ipConf, err := alloc.Get(args.ContainerID)
+	if err != nil {
+		return err
+	}
+
+	// Below here, if error, we should call store.Release(args.ContainerID) to release the IP written to database.
+	if userDefinedGateway == "" {
+		gw := types.Route{
+			Dst: net.IPNet{
+				IP:   net.IPv4zero,
+				Mask: net.IPv4Mask(0, 0, 0, 0),
+			},
+			GW: ipConf.Gateway,
+		}
+		result.Routes = append(result.Routes, &gw)
+	}
+	result.IPs = append(result.IPs, ipConf)
 
 	return types.PrintResult(result, confVersion)
 }
