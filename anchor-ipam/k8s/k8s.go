@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"strings"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -74,4 +75,33 @@ func GetK8sPodInfo(client *kubernetes.Clientset, podName, podNamespace string) (
 		return nil, nil, err
 	}
 	return pod.Labels, pod.Annotations, nil
+}
+
+// ResourceControllerName get the name of ResourceController based on given reference.
+// to convert owner/created by references to real objects.
+func ResourceControllerName(client *kubernetes.Clientset, podName, namespace string) (
+	string, error) {
+	pod, err := client.CoreV1().Pods(string(namespace)).Get(podName, v1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	for _, ref := range pod.OwnerReferences {
+		if *ref.Controller {
+			if strings.ToLower(ref.Kind) == "replicaset" {
+				rs, err := client.AppsV1beta2().ReplicaSets(namespace).Get(ref.Name, v1.GetOptions{})
+				if err != nil {
+					return "", err
+				}
+				for _, r := range rs.OwnerReferences {
+					if *r.Controller {
+						return r.Name, nil
+					}
+				}
+				return ref.Name, nil
+			}
+			return ref.Name, nil
+		}
+	}
+	return "", fmt.Errorf("The pod %s has no controller", podName)
 }

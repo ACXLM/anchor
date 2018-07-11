@@ -79,12 +79,13 @@ func cmdAdd(args *skel.CmdArgs) error {
 	userDefinedRoutes := annot["cni.daocloud.io/routes"]
 	userDefinedGateway := annot["cni.daocloud.io/gateway"]
 
-	app := label["io.daocloud.dce.app"]
-	service := label["io.daocloud.dce.name"]
-
+	// app := label["io.daocloud.dce.app"]
+	app := label["dce.daocloud.io/app"]
 	if app == "" {
 		app = "unknown"
 	}
+	service, err := k8s.ResourceControllerName(k8sClient, string(k8sArgs.K8S_POD_NAME), string(k8sArgs.K8S_POD_NAMESPACE))
+
 	if service == "" {
 		service = "unknown"
 	}
