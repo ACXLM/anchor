@@ -15,13 +15,36 @@
 package main
 
 import (
-	"bufio"
-	"os"
+	// "bufio"
+	// "os"
 	"strings"
 
 	"github.com/containernetworking/cni/pkg/types"
 )
 
+func generateDNS(nameserver string, domain string, search string, options string) (*types.DNS, error) {
+	dns := types.DNS{}
+	if nameserver != "" {
+		servers :=  strings.Split(nameserver, ",")
+		dns.Nameservers = append(dns.Nameservers, servers...)
+	}
+
+	if domain != "" {
+		dns.Domain = domain
+	}
+
+	if search != "" {
+		searches :=  strings.Split(search, ",")
+		dns.Search = append(dns.Search, searches...)
+	}
+	if options != "" {
+		ops :=  strings.Split(options, ",")
+		dns.Options = append(dns.Options, ops...)
+	}
+	return &dns, nil
+}
+
+/*
 // parseResolvConf parses an existing resolv.conf in to a DNS struct
 func parseResolvConf(filename string) (*types.DNS, error) {
 	fp, err := os.Open(filename)
@@ -62,3 +85,4 @@ func parseResolvConf(filename string) (*types.DNS, error) {
 
 	return &dns, nil
 }
+*/

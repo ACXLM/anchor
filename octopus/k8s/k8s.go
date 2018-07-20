@@ -73,5 +73,6 @@ func GetK8sPodInfo(client *kubernetes.Clientset, podName, podNamespace string) (
 	if err != nil {
 		return nil, nil, err
 	}
+	
 	return pod.Labels, pod.Annotations, nil
 }
