@@ -15,7 +15,7 @@ class DCEClient(requests.Session):
         import dce_plugin
         sdk = dce_plugin.PluginSDK()
         return 'https://{}:{}'.format(sdk._detect_host_ip(),
-                                      sdk._detect_dce_ports()[2])
+                                      sdk._detect_dce_ports()[1])
 
     def __init__(self, base_url=None, username=None, password=None, token=None, timeout=30, verify=False):
         super(DCEClient, self).__init__()
