@@ -195,11 +195,12 @@ def get_static_ip_unadmin():
     result = {}
     sips = etcd.get_prefix(ETCD_STATICIP_STORE_IP_PREFIX)
     log.debug("sip from unadmin:{}".format(sips))
+    tenant_names = get_tenant_names()
     for s in sips:
         data = s[0].split(",")
         if len(data) != 6:
             continue
-        if data[3] in get_tenant_names():
+        if data[3] in tenant_names:
             result[data[0]] = StaticIP(static_ip=data[1], pod_name=data[2],
                                            tenant_name=data[3],app_name=data[5],
                                            service_name=data[4], container_id=data[0])._as_view_dict()
