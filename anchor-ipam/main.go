@@ -31,7 +31,12 @@ import (
 
 // TODO: logging and debug.
 func main() {
-	skel.PluginMain(cmdAdd, cmdDel, version.All)
+	skel.PluginMain(cmdAdd, cmdGet, cmdDel, version.All, "TODO")
+}
+
+func cmdGet(args *skel.CmdArgs) error {
+	// TODO: implement
+	return fmt.Errorf("not implemented")
 }
 
 // TODO: create a seperate function named etcdClient which return kv and mutex.

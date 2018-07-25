@@ -67,15 +67,18 @@ func (a *AnchorAllocator) Get(id string) (*current.IPConfig, error) {
 	availsForNamespace, err := a.store.GetAllocatedIPs(a.podNamespace)
 	if err != nil {
 		errors = append(errors, err.Error())
+		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 	availsRangeSet, err := LoadRangeSetInSubnet(availsForNamespace, a.subnet)
 	if err != nil {
 		errors = append(errors, err.Error())
+		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 	// TODO: reduce usedByNamespace by subnet to save the time in compare stage.
 	usedByNamespace, err := a.store.GetUsedIPbyNamespace(a.podNamespace)
 	if err != nil {
 		errors = append(errors, err.Error())
+		return nil, fmt.Errorf(strings.Join(errors, ";"))
 	}
 
 	for _, r := range *availsRangeSet {
