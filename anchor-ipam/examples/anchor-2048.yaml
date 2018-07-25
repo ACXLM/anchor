@@ -11,8 +11,17 @@ spec:
       labels:
         app: anchor-2048
       annotations:
-        cni.daocloud.io/ipAddrs: 10.0.2.[2-8],10.0.2.11
+        cni.daocloud.io/subnet: 10.135.10.0/24
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - dt-node07
       containers:
       - name: anchor-2048
         image: daocloud.io/daocloud/dao-2048:latest
