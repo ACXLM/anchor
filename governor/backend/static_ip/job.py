@@ -247,7 +247,7 @@ def get_gateway():
     return jsonify(l)
 
 
-def create_gateway(subnet, gateway):version 0.3.2, adaptation DCE3.0, make static ip get API faster
+def create_gateway(subnet, gateway):
     d = {}
     subnet = verify_subnet(subnet)
     gateway = verify_ip(gateway)
