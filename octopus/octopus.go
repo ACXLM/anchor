@@ -188,7 +188,10 @@ func cmdAdd(args *skel.CmdArgs) error {
 
 	master := n.Octopus[subnet]
 	if master == "" {
-		return fmt.Errorf("Master interface not found for " + subnet)
+		if subnet == "" {
+			return fmt.Errorf("No annotation named cni.daocloud.io/subnet found")
+		}
+		return fmt.Errorf("Master interface %s not found on this node", subnet)
 	}
 	macvlanInterface, err := createMacvlan(n, args.IfName, netns, master)
 	if err != nil {
