@@ -1,7 +1,6 @@
 FROM alpine
 
 LABEL maintainer "Haines Chan <yunhai.chen@daocloud.io>"
-
 RUN apk --no-cache add iproute2
 
 ADD anchor-ipam /opt/cni/bin/anchor-ipam

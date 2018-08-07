@@ -59,7 +59,16 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
       MACVLAN_INTERFACE=$master
       # Create macvlan interface, recently we only support one interface per node
       noskip=false
-      ip addr | grep -oE "acr[[:digit:]][[:digit:]]" > /dev/null 2>&1 || noskip=true
+      if [ ${#suffix} -gt 2 ]; then
+        echo "Max 100 interfaces are support" && exit 1
+      fi
+
+      if [ ${#suffix} -eq 1 ]; then
+        macvlan=acr0"$suffix"
+      else
+        macvlan=acr"$suffix"
+      fi
+      ip addr | grep -oE "${macvlan}" > /dev/null 2>&1 || noskip=true
       if [ "$noskip" == "true" ]; then
         echo "Turnning $master promisc on..."
         ip link set $master promisc on
@@ -68,25 +77,13 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         # Only do this when the network monitor rely on the mac address for network monitor.
         mac_address_master=$(ip link show $master | grep -oE "link/ether ([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}" | grep -oE "([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}")
         interface_created=false
-        while [ $interface_created == "false" ]; do
-          if [ ${#suffix} -gt 2 ]; then
-            echo "Max 100 interfaces are support" && exit 1
-          fi
+        if [ $interface_created == "false" ]; then
 
-          if [ ${#suffix} -eq 1 ]; then
-            macvlan=acr0"$suffix"
-          else
-            macvlan=acr"$suffix"
-          fi
           # We write in this way because set -eu in the header of this script.
           interface_created=true
           ip link add $macvlan link $master address $mac_address_master type macvlan mode bridge > /dev/null 2>&1 || interface_created=false
-          if [ $interface_created == "true" ]; then
-            break
-          fi
-
           suffix=$((suffix+1))
-        done
+        fi
         if [ $interface_created == "false" ]; then
           echo "Cannot create macvlan interface, will exit soon"
           ip link set dev $master up
@@ -98,7 +95,7 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         ip link set dev $master up
 
         echo "Deleting $ip from device $master..."
-        ip addr del $ip/$mask dev $master
+        ip addr del $ip/$mask dev $master || true
 
         echo "Adding $ip to device $macvlan..."
         ip addr add $ip/$mask dev $macvlan
@@ -110,29 +107,33 @@ if [ "$CREATE_MACVLAN" == "true" ]; then
         echo "Replacing the route for $subnet..."
         ip route replace $subnet dev $macvlan metric 0
 
-        echo "Replacing the route for default..."
-        ip route replace default via $gateway dev $macvlan
-
+        if [ $macvlan == "acr00" ]; then
+          echo "Replacing the route for default..."
+          ip route add default via $gateway dev $macvlan || true
+          ip route replace default via $gateway dev $macvlan || true
+        fi
         # Ping the gateway for fast flushing the cache in the switch.
         ping -c 4 $gateway > /dev/null 2>&1 || true
       else
-        echo "MacVLAN insterface for anchor exists, Check the information below: "
+        echo "MacVLAN insterface ${macvlan} for anchor exists, Check the information below: "
         echo ""
         echo "Hostname: $hostname"
         echo ""
-        ip addr | grep -oE "acr[[:digit:]][[:digit:]]@$master" | grep -oE "acr[[:digit:]][[:digit:]]" | xargs -n 1 ip addr show
+        ip addr | grep -oE "${macvlan}@$master" | grep -oE "${macvlan}" | xargs -n 1 ip addr show
 
         echo ""
         echo "It may be caused by: "
-        echo "    1. This interface is not main interface, there no need to create interface on it."
-        echo "    2. The pod belongs to anchor daemonset get killed and restart by kubernetes"
-        echo "    3. Something error and the administritor re-deploy the anchor daemonset"
-        echo "Create macvlan interface skipped, please check it manually"
+        echo "    1. This pod which belongs to anchor daemonset get killed and restart"
+        echo "    2. Somebody create ${macvlan} manaully"
+        echo "    3. Something error in pre-installation and then re-deploy anchor"
+        echo "    4. The ${macvlan} interface is remains by the old env"
         echo ""
         echo "What you can do are: "
-        echo "    1. Nothing to do"
-        echo "    2. Simply restart the network and all network info configed by anchor will be removed"
-        echo "    3. Create macvlan insterface manully and config the ip route"
+        echo "    When 1. Nothing to do"
+        echo "    When 2. Delete it manaully Or it will be deleted by node restart"
+        echo "    When 3. Nothing to do if cluster network not changed, else restart the node"
+        echo "    When 4. Restart the node"
+        suffix=$((suffix+1))
       fi
     fi
   done
