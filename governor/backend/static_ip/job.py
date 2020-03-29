@@ -58,7 +58,8 @@ class Job(object):
 
     def get_tenant_ip_ips_use(self):
         l = []
-        for s in etcd.get_prefix(ETCD_STATICIP_STORE_IP_PREFIX):
+        ips = etcd.get_prefix(ETCD_STATICIP_STORE_IP_PREFIX)
+        for s in ips:
             sip = s[0].split(",")
             if sip[2] == self.tenant_name:
                 l.append(sip[0])
@@ -66,7 +67,8 @@ class Job(object):
 
     def get_static_ips_all(self):
         sip = ""
-        for s in etcd.get_prefix(ETCD_STATICIP_STORE_TENANT_PREFIX):
+        ips = etcd.get_prefix(ETCD_STATICIP_STORE_TENANT_PREFIX)
+        for s in ips:
             sip = sip + ',' + s[0]
         log.debug('get_static_ips_all:{}'.format(sip))
         return sip.split(",")

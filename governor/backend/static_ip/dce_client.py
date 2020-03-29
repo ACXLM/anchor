@@ -104,7 +104,8 @@ def require_admin(f):
 
 
 def get_tenant_names():
-    return [i.get('Name') for i in DCEClient().tenants()]
+    tenants = DCEClient().tenants()
+    return [i.get('Name') for i in tenants]
 
 
 if __name__ == "__main__":
