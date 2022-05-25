@@ -9,7 +9,7 @@ schedule==0.3.2
 
 etcd3>=0.7.0
 requests==2.10.0
-pyjwt==1.5.2
+pyjwt==2.4.0
 IPy==0.83
 ipaddress==1.0.19
 
